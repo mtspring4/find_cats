@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find the Cats! - 猫探しゲーム</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            background-color: #fefce8;
+            touch-action: manipulation;
+            font-family: 'sans-serif';
+        }
+        .game-container {
+            position: relative;
+            overflow: auto;
+            max-width: 100%;
+            max-height: 75vh;
+            border: 8px solid #fbbf24;
+            border-radius: 20px;
+            background-color: #fff;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        }
+        .game-image {
+            display: block;
+            /* 初期の最小幅を設定してズーム可能に */
+            min-width: 1200px;
+            height: auto;
+            cursor: crosshair;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        .marker {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #ef4444;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+        .marker::after {
+            content: '🐾';
+            position: absolute;
+            top: -25px;
+            right: -15px;
+            font-size: 20px;
+        }
+        /* スクロールバーのカスタマイズ */
+        .game-container::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+        .game-container::-webkit-scrollbar-thumb {
+            background: #fbbf24;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center p-4 min-h-screen">
+
+    <header class="text-center mb-6">
+        <h1 class="text-4xl font-black text-amber-600 mb-2">Find the Cats! 😺</h1>
+        <p class="text-gray-600">隠れているネコたちを全部見つけよう！</p>
+    </header>
+
+    <!-- スタート画面: ステージ選択 -->
+    <div id="start-screen" class="w-full max-w-3xl bg-white p-8 rounded-3xl shadow-xl border-4 border-amber-100">
+        <h2 class="text-2xl font-bold mb-6 text-center text-gray-700">ステージを選択</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            
+            <!-- ステージ 1 (ima/01.png) -->
+            <button onclick="startGame('ima/01.png', 'にぎやかな町')" 
+                class="group relative overflow-hidden rounded-2xl border-4 border-transparent hover:border-amber-400 transition-all bg-amber-50 p-3 shadow-sm hover:shadow-md">
+                <div class="aspect-video bg-gray-200 rounded-lg mb-3 overflow-hidden">
+                    <img src="ima/01.png" alt="Stage 1" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                </div>
+                <div class="font-bold text-lg text-amber-800">Stage 1: にぎやかな町</div>
+                <div class="text-sm text-amber-600">難易度: ★☆☆</div>
+            </button>
+
+            <!-- ステージ追加用テンプレート (コメントアウトを外して画像を増やす) -->
+            <!--
+            <button onclick="startGame('ima/02.png', '次のステージ')" 
+                class="group relative overflow-hidden rounded-2xl border-4 border-transparent hover:border-amber-400 transition-all bg-amber-50 p-3 shadow-sm hover:shadow-md">
+                <div class="aspect-video bg-gray-200 rounded-lg mb-3 flex items-center justify-center">
+                    <span class="text-gray-400">No Image</span>
+                </div>
+                <div class="font-bold text-lg text-amber-800">Stage 2: ？？？</div>
+            </button>
+            -->
+
+        </div>
+    </div>
+
+    <!-- ゲームプレイ画面 -->
+    <div id="game-screen" class="hidden w-full max-w-6xl flex flex-col items-center">
+        
+        <!-- 操作ツールバー -->
+        <div class="w-full flex flex-wrap justify-between items-center gap-4 mb-4 bg-white p-4 rounded-2xl shadow-sm border border-amber-100">
+            <button onclick="backToMenu()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-xl transition">
+                🔙 メニューに戻る
+            </button>
+            
+            <div class="flex items-center gap-4 bg-amber-50 px-4 py-2 rounded-xl">
+                <span class="font-bold text-amber-800">ズーム調整:</span>
+                <input type="range" min="600" max="3000" value="1200" 
+                    class="h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500" 
+                    oninput="adjustZoom(this.value)">
+            </div>
+
+            <div id="status-display" class="font-bold text-lg text-amber-700 bg-white border-2 border-amber-400 px-4 py-1 rounded-full">
+                見つけた数: <span id="found-count">0</span> / <span id="total-count">0</span>
+            </div>
+        </div>
+
+        <!-- メインキャンバス -->
+        <div class="game-container" id="game-container">
+            <div id="image-wrapper" class="relative inline-block">
+                <img id="stage-image" src="" alt="Find the cat" class="game-image" onclick="checkClick(event)" draggable="false">
+                <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
+            </div>
+        </div>
+
+        <div class="mt-4 p-4 bg-white/50 rounded-xl text-sm text-gray-500 flex flex-col items-center">
+            <p>💡 ヒント: 画像をドラッグまたはスクロールして探索しよう！</p>
+            <p id="coord-helper" class="mt-1 text-[10px] opacity-50">（開発用座標: クリックでコンソールに出力）</p>
+        </div>
+    </div>
+
+    <!-- 発見時の演出 -->
+    <div id="toast" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-0 opacity-0 bg-white text-amber-600 px-10 py-5 rounded-full text-3xl font-black shadow-2xl z-50 transition-all duration-300 pointer-events-none border-4 border-amber-400">
+        見つけた！ 🐱✨
+    </div>
+
+    <script>
+        // 画像ごとの当たり判定座標（%単位）
+        // 開発中にコンソールに表示される座標をここに追加していく
+        const stageData = {
+            'ima/01.png': [
+                { x: 44.5, y: 5.6, name: "飛行機のネコ" },
+                { x: 13.5, y: 35.8, name: "灯台の隣のネコ" },
+                { x: 41.1, y: 57.5, name: "道を歩くネコ" },
+                { x: 86.4, y: 29.8, name: "ツリーハウスのネコ" },
+                { x: 14.5, y: 71.1, name: "畑で働くネコ" },
+                { x: 89.2, y: 88.3, name: "テントのネコ" },
+                { x: 57.1, y: 22.8, name: "ビーチのネコ" }
+            ],
+            // 'ima/02.png': [ { x: 50, y: 50, name: "サンプル" } ]
+        };
+
+        let currentImage = "";
+        let foundIndices = new Set();
+
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const stageImage = document.getElementById('stage-image');
+        const markerLayer = document.getElementById('marker-layer');
+        const foundCountSpan = document.getElementById('found-count');
+        const totalCountSpan = document.getElementById('total-count');
+        const toast = document.getElementById('toast');
+
+        function startGame(path, title) {
+            currentImage = path;
+            foundIndices.clear();
+            markerLayer.innerHTML = '';
+            
+            stageImage.src = path;
+            
+            // ステージデータの初期化
+            const targets = stageData[path] || [];
+            foundCountSpan.textContent = "0";
+            totalCountSpan.textContent = targets.length;
+
+            startScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            
+            // 画像読み込み後にコンテナを中央へ
+            stageImage.onload = () => {
+                const container = document.getElementById('game-container');
+                container.scrollLeft = (stageImage.width - container.clientWidth) / 2;
+                container.scrollTop = (stageImage.height - container.clientHeight) / 2;
+            };
+        }
+
+        function backToMenu() {
+            startScreen.classList.remove('hidden');
+            gameScreen.classList.add('hidden');
+        }
+
+        function adjustZoom(val) {
+            stageImage.style.minWidth = val + 'px';
+        }
+
+        function checkClick(e) {
+            const rect = stageImage.getBoundingClientRect();
+            // クリック位置を画像のサイズに対する％で計算
+            const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
+            const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
+
+            // 開発用：コンソールに座標を表示（新しい場所を追加する時に便利）
+            console.log(`{ x: ${xPercent.toFixed(1)}, y: ${yPercent.toFixed(1)}, name: "新しいネコ" }`);
+
+            const targets = stageData[currentImage] || [];
+            let isCorrect = false;
+
+            targets.forEach((target, index) => {
+                if (foundIndices.has(index)) return;
+
+                // 判定距離（ズーム具合に関わらず一定の％範囲内なら正解）
+                const distance = Math.sqrt(Math.pow(xPercent - target.x, 2) + Math.pow(yPercent - target.y, 2));
+                
+                if (distance < 2.5) { // 2.5%の範囲内
+                    addMarker(target.x, target.y);
+                    foundIndices.add(index);
+                    isCorrect = true;
+                }
+            });
+
+            if (isCorrect) {
+                updateProgress();
+                showToast();
+            }
+        }
+
+        function addMarker(x, y) {
+            const marker = document.createElement('div');
+            marker.className = 'marker';
+            marker.style.left = x + '%';
+            marker.style.top = y + '%';
+            markerLayer.appendChild(marker);
+        }
+
+        function updateProgress() {
+            const targets = stageData[currentImage] || [];
+            foundCountSpan.textContent = foundIndices.size;
+            
+            if (foundIndices.size === targets.length && targets.length > 0) {
+                setTimeout(() => {
+                    alert("おめでとう！全部のネコを見つけたよ！🎉");
+                }, 500);
+            }
+        }
+
+        function showToast() {
+            toast.classList.remove('scale-0', 'opacity-0');
+            toast.classList.add('scale-100', 'opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('scale-100', 'opacity-100');
+                toast.classList.add('scale-0', 'opacity-0');
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
+
