@@ -55,31 +55,30 @@
         <p class="text-gray-600">隠れているネコたちを全部見つけよう！</p>
     </header>
 
-    <!-- Start Screen: Stage Selection -->
+    <!-- スタート画面 -->
     <div id="start-screen" class="w-full max-w-3xl bg-white p-8 rounded-3xl shadow-xl border-4 border-amber-100">
         <h2 class="text-2xl font-bold mb-6 text-center text-gray-700">ステージを選択</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             
-            <button onclick="startGame('./img/01.PNG', 'にぎやかな町')" 
-                class="group relative overflow-hidden rounded-2xl border-4 border-transparent hover:border-amber-400 transition-all bg-amber-50 p-3 shadow-sm hover:shadow-md">
-                <div class="aspect-video bg-gray-200 rounded-lg mb-3 overflow-hidden flex items-center justify-center">
-                    <img src="./img/01.PNG" alt="Stage 1 Preview" 
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+            <button onclick="startGame('img/01.PNG', 'にぎやかな町')" 
+                class="group relative overflow-hidden rounded-2xl border-4 border-transparent hover:border-amber-400 transition-all bg-amber-50 p-3 shadow-sm hover:shadow-md text-center">
+                <div class="aspect-video bg-gray-200 rounded-lg mb-3 overflow-hidden flex items-center justify-center border border-gray-300">
+                    <!-- サムネイルも大文字.PNG -->
+                    <img src="img/01.PNG" alt="Stage 1 Preview" 
                          class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
-                    <div class="hidden text-gray-400 text-xs p-2">画像が見つかりません<br>(img/01.PNG)</div>
                 </div>
                 <div class="font-bold text-lg text-amber-800">Stage 1: にぎやかな町</div>
-                <div class="text-sm text-amber-600 text-left">難易度: ★☆☆</div>
+                <div class="text-sm text-amber-600">難易度: ★☆☆</div>
             </button>
 
         </div>
     </div>
 
-    <!-- Game Play Screen -->
+    <!-- ゲームプレイ画面 -->
     <div id="game-screen" class="hidden w-full max-w-6xl flex flex-col items-center">
         <div class="w-full flex flex-wrap justify-between items-center gap-4 mb-4 bg-white p-4 rounded-2xl shadow-sm border border-amber-100">
             <button onclick="backToMenu()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-xl transition">
-                🔙 メニューに戻る
+                🔙 戻る
             </button>
             
             <div class="flex items-center gap-4 bg-amber-50 px-4 py-2 rounded-xl">
@@ -96,34 +95,35 @@
 
         <div class="game-container" id="game-container">
             <div id="image-wrapper" class="relative inline-block">
-                <img id="stage-image" src="" alt="Game Board" class="game-image" 
-                     onclick="checkClick(event)" draggable="false"
-                     onerror="handleImageError()">
+                <img id="stage-image" src="" alt="Find the cat" class="game-image" 
+                     onclick="checkClick(event)" draggable="false">
                 <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
             </div>
         </div>
 
-        <div id="error-message" class="hidden mt-4 p-4 bg-red-100 text-red-700 rounded-xl">
-            画像ファイルが見つかりません。フォルダ名が「img」で、その中に「01.PNG」があるか確認してください。
+        <!-- 診断用パネル（画像が出ない時用） -->
+        <div id="diagnostic-panel" class="mt-4 p-4 bg-gray-100 rounded-xl text-xs text-gray-500 w-full max-w-xl">
+            <p class="font-bold border-b mb-2">画像トラブル診断:</p>
+            <p>現在のHTMLの場所: <span id="current-url" class="break-all"></span></p>
+            <p>読み込もうとしている画像: <span id="target-path" class="text-red-600 font-mono"></span></p>
+            <p class="mt-2 text-blue-600 underline cursor-pointer" onclick="checkFileExistence()">[ フォルダ構造のヒントを表示 ]</p>
         </div>
     </div>
 
-    <!-- Success Toast -->
+    <!-- トースト演出 -->
     <div id="toast" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-0 opacity-0 bg-white text-amber-600 px-10 py-5 rounded-full text-3xl font-black shadow-2xl z-50 transition-all duration-300 pointer-events-none border-4 border-amber-400">
         見つけた！ 🐱✨
     </div>
 
     <script>
-        // Data for each image
         const stageData = {
-            './img/01.PNG': [
-                { x: 44.5, y: 5.6, name: "Airplane Cat" },
-                { x: 13.5, y: 35.8, name: "Lighthouse Cat" },
-                { x: 41.1, y: 57.5, name: "Walking Cat" },
-                { x: 86.4, y: 29.8, name: "Treehouse Cat" },
-                { x: 14.5, y: 71.1, name: "Farmer Cat" },
-                { x: 89.2, y: 88.3, name: "Tent Cat" },
-                { x: 57.1, y: 22.8, name: "Beach Cat" }
+            'img/01.PNG': [
+                { x: 44.5, y: 5.6, name: "飛行機のネコ" },
+                { x: 13.5, y: 35.8, name: "灯台の隣のネコ" },
+                { x: 41.1, y: 57.5, name: "道のネコ" },
+                { x: 86.4, y: 29.8, name: "木工所のネコ" },
+                { x: 14.5, y: 71.1, name: "農夫のネコ" },
+                { x: 89.2, y: 88.3, name: "テントのネコ" }
             ]
         };
 
@@ -137,14 +137,19 @@
         const foundCountSpan = document.getElementById('found-count');
         const totalCountSpan = document.getElementById('total-count');
         const toast = document.getElementById('toast');
-        const errorMsg = document.getElementById('error-message');
+
+        // ページ読み込み時にURLを表示
+        window.onload = () => {
+            document.getElementById('current-url').textContent = window.location.href;
+        };
 
         function startGame(path, title) {
             currentImage = path;
             foundIndices.clear();
             markerLayer.innerHTML = '';
-            errorMsg.classList.add('hidden');
-            stageImage.style.display = 'block';
+            
+            // パスの表示（デバッグ用）
+            document.getElementById('target-path').textContent = path;
             
             stageImage.src = path;
             
@@ -156,9 +161,8 @@
             gameScreen.classList.remove('hidden');
         }
 
-        function handleImageError() {
-            errorMsg.classList.remove('hidden');
-            stageImage.style.display = 'none';
+        function checkFileExistence() {
+            alert("確認してください：\n1. このHTMLファイルと同じ場所に「img」という名前のフォルダがありますか？\n2. その中に「01.PNG」という名前の画像がありますか？\n3. 拡張子は「.png」ではなく「.PNG」ですか？");
         }
 
         function backToMenu() {
@@ -175,8 +179,7 @@
             const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
             const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
 
-            // Log coordinates for development
-            console.log(`{ x: ${xPercent.toFixed(1)}, y: ${yPercent.toFixed(1)}, name: "New Cat" }`);
+            console.log(`{ x: ${xPercent.toFixed(1)}, y: ${yPercent.toFixed(1)}, name: "ネコ" }`);
 
             const targets = stageData[currentImage] || [];
             let isCorrect = false;
@@ -209,7 +212,7 @@
             foundCountSpan.textContent = foundIndices.size;
             const targets = stageData[currentImage] || [];
             if (foundIndices.size === targets.length && targets.length > 0) {
-                setTimeout(() => alert("おめでとう！全部見つけたよ！🎉"), 500);
+                setTimeout(() => alert("パーフェクト！全部見つけたよ！🎉"), 500);
             }
         }
 
