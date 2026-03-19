@@ -9,7 +9,7 @@
         body {
             background-color: #fefce8;
             touch-action: manipulation;
-            font-family: 'sans-serif';
+            font-family: sans-serif;
         }
         .game-container {
             position: relative;
@@ -70,19 +70,19 @@
         <h2 class="text-2xl font-bold mb-6 text-center text-gray-700">ステージを選択</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
             
-            <!-- ステージ 1 (ima/01.png) -->
-            <button onclick="startGame('ima/01.png', 'にぎやかな町')" 
+            <!-- ステージ 1 (img/01.png) -->
+            <button onclick="startGame('img/01.png', 'にぎやかな町')" 
                 class="group relative overflow-hidden rounded-2xl border-4 border-transparent hover:border-amber-400 transition-all bg-amber-50 p-3 shadow-sm hover:shadow-md">
                 <div class="aspect-video bg-gray-200 rounded-lg mb-3 overflow-hidden">
-                    <img src="ima/01.png" alt="Stage 1" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+                    <img src="img/01.png" alt="Stage 1" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
                 </div>
                 <div class="font-bold text-lg text-amber-800">Stage 1: にぎやかな町</div>
-                <div class="text-sm text-amber-600">難易度: ★☆☆</div>
+                <div class="text-sm text-amber-600 text-left">難易度: ★☆☆</div>
             </button>
 
-            <!-- ステージ追加用テンプレート (コメントアウトを外して画像を増やす) -->
+            <!-- ステージ追加用テンプレート (img/02.png 等を増やす場合) -->
             <!--
-            <button onclick="startGame('ima/02.png', '次のステージ')" 
+            <button onclick="startGame('img/02.png', '次のステージ')" 
                 class="group relative overflow-hidden rounded-2xl border-4 border-transparent hover:border-amber-400 transition-all bg-amber-50 p-3 shadow-sm hover:shadow-md">
                 <div class="aspect-video bg-gray-200 rounded-lg mb-3 flex items-center justify-center">
                     <span class="text-gray-400">No Image</span>
@@ -136,9 +136,8 @@
 
     <script>
         // 画像ごとの当たり判定座標（%単位）
-        // 開発中にコンソールに表示される座標をここに追加していく
         const stageData = {
-            'ima/01.png': [
+            'img/01.png': [
                 { x: 44.5, y: 5.6, name: "飛行機のネコ" },
                 { x: 13.5, y: 35.8, name: "灯台の隣のネコ" },
                 { x: 41.1, y: 57.5, name: "道を歩くネコ" },
@@ -146,8 +145,7 @@
                 { x: 14.5, y: 71.1, name: "畑で働くネコ" },
                 { x: 89.2, y: 88.3, name: "テントのネコ" },
                 { x: 57.1, y: 22.8, name: "ビーチのネコ" }
-            ],
-            // 'ima/02.png': [ { x: 50, y: 50, name: "サンプル" } ]
+            ]
         };
 
         let currentImage = "";
@@ -176,7 +174,7 @@
             startScreen.classList.add('hidden');
             gameScreen.classList.remove('hidden');
             
-            // 画像読み込み後にコンテナを中央へ
+            // 画像読み込み後にコンテナを中央へスクロール
             stageImage.onload = () => {
                 const container = document.getElementById('game-container');
                 container.scrollLeft = (stageImage.width - container.clientWidth) / 2;
@@ -199,7 +197,7 @@
             const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
             const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
 
-            // 開発用：コンソールに座標を表示（新しい場所を追加する時に便利）
+            // 開発用：コンソールに座標を表示
             console.log(`{ x: ${xPercent.toFixed(1)}, y: ${yPercent.toFixed(1)}, name: "新しいネコ" }`);
 
             const targets = stageData[currentImage] || [];
@@ -208,10 +206,10 @@
             targets.forEach((target, index) => {
                 if (foundIndices.has(index)) return;
 
-                // 判定距離（ズーム具合に関わらず一定の％範囲内なら正解）
+                // 判定距離（2.5%の範囲内なら正解）
                 const distance = Math.sqrt(Math.pow(xPercent - target.x, 2) + Math.pow(yPercent - target.y, 2));
                 
-                if (distance < 2.5) { // 2.5%の範囲内
+                if (distance < 2.5) { 
                     addMarker(target.x, target.y);
                     foundIndices.add(index);
                     isCorrect = true;
