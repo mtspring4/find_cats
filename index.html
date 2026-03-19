@@ -7,123 +7,128 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
-            background-color: #fefce8;
+            background-color: #1a1a1a; /* ダーク背景で画像を目立たせる */
             touch-action: manipulation;
-            font-family: sans-serif;
+            font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+            margin: 0;
+            overflow: hidden;
+        }
+        .game-screen-layout {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
         }
         .game-container {
             position: relative;
             overflow: auto;
-            max-width: 100%;
-            max-height: 75vh;
-            border: 8px solid #fbbf24;
-            border-radius: 20px;
-            background-color: #f3f4f6;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            height: 100%;
+            background-color: #333;
+            cursor: crosshair;
         }
         .game-image {
             display: block;
-            min-width: 1200px;
+            min-width: 1800px; /* 初期ズームを大きめに設定 */
             height: auto;
-            cursor: crosshair;
             user-select: none;
             -webkit-user-drag: none;
         }
         .marker {
             position: absolute;
-            width: 50px;
-            height: 50px;
-            border: 5px solid #ef4444;
+            width: 60px;
+            height: 60px;
+            border: 6px solid #ff4d4d;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 10;
+            box-shadow: 0 0 15px rgba(255, 77, 77, 0.5);
+            animation: appear 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        .marker::after {
-            content: '🐾';
-            position: absolute;
-            top: -25px;
-            right: -15px;
-            font-size: 20px;
+        @keyframes appear {
+            from { transform: translate(-50%, -50%) scale(0); }
+            to { transform: translate(-50%, -50%) scale(1); }
+        }
+        .target-item.found {
+            text-decoration: line-through;
+            opacity: 0.5;
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        /* スクロールバー非表示（スッキリさせるため） */
+        .game-container::-webkit-scrollbar {
+            display: none;
         }
     </style>
 </head>
-<body class="flex flex-col items-center p-4 min-h-screen">
-
-    <header class="text-center mb-6">
-        <h1 class="text-4xl font-black text-amber-600 mb-2">Find the Cats! 😺</h1>
-        <p class="text-gray-600">隠れているネコたちを全部見つけよう！</p>
-    </header>
+<body>
 
     <!-- スタート画面 -->
-    <div id="start-screen" class="w-full max-w-3xl bg-white p-8 rounded-3xl shadow-xl border-4 border-amber-100">
-        <h2 class="text-2xl font-bold mb-6 text-center text-gray-700">ステージを選択</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+    <div id="start-screen" class="fixed inset-0 flex items-center justify-center bg-amber-50 z-50 p-6">
+        <div class="max-w-md w-full bg-white p-10 rounded-[3rem] shadow-2xl border-8 border-amber-200 text-center">
+            <h1 class="text-5xl font-black text-amber-600 mb-4">Find Cats!</h1>
+            <p class="text-gray-500 mb-8">イラストの中に隠れた<br>特別なネコたちを探し出そう</p>
             
-            <button onclick="startGame('img/01.PNG', 'にぎやかな町')" 
-                class="group relative overflow-hidden rounded-2xl border-4 border-transparent hover:border-amber-400 transition-all bg-amber-50 p-3 shadow-sm hover:shadow-md text-center">
-                <div class="aspect-video bg-gray-200 rounded-lg mb-3 overflow-hidden flex items-center justify-center border border-gray-300">
-                    <!-- サムネイルも大文字.PNG -->
-                    <img src="img/01.PNG" alt="Stage 1 Preview" 
-                         class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500">
+            <button onclick="startGame('img/01.PNG')" 
+                class="w-full group overflow-hidden rounded-3xl border-4 border-amber-400 hover:bg-amber-400 transition-all p-4 bg-white shadow-xl">
+                <div class="aspect-video bg-gray-100 rounded-xl mb-4 overflow-hidden">
+                    <img src="img/01.PNG" alt="Stage 1" class="w-full h-full object-cover">
                 </div>
-                <div class="font-bold text-lg text-amber-800">Stage 1: にぎやかな町</div>
-                <div class="text-sm text-amber-600">難易度: ★☆☆</div>
+                <span class="font-bold text-2xl text-amber-800 group-hover:text-white transition-colors">あそぶ</span>
             </button>
-
         </div>
     </div>
 
     <!-- ゲームプレイ画面 -->
-    <div id="game-screen" class="hidden w-full max-w-6xl flex flex-col items-center">
-        <div class="w-full flex flex-wrap justify-between items-center gap-4 mb-4 bg-white p-4 rounded-2xl shadow-sm border border-amber-100">
-            <button onclick="backToMenu()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-6 rounded-xl transition">
-                🔙 戻る
-            </button>
-            
-            <div class="flex items-center gap-4 bg-amber-50 px-4 py-2 rounded-xl">
-                <span class="font-bold text-amber-800">ズーム:</span>
-                <input type="range" min="600" max="3000" value="1200" 
-                    class="h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500" 
-                    oninput="adjustZoom(this.value)">
-            </div>
+    <div id="game-screen" class="hidden game-screen-layout">
+        
+        <!-- 上部：お題パネル -->
+        <div class="bg-white/95 backdrop-blur shadow-lg p-3 z-20">
+            <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-4">
+                <button onclick="backToMenu()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-xl text-sm transition">
+                    ◀ 戻る
+                </button>
+                
+                <div class="flex-1 overflow-x-auto">
+                    <div id="target-list" class="flex gap-2 pb-1 no-scrollbar">
+                        <!-- ここにターゲットテキストが入る -->
+                    </div>
+                </div>
 
-            <div class="font-bold text-lg text-amber-700 bg-white border-2 border-amber-400 px-4 py-1 rounded-full">
-                見つけた数: <span id="found-count">0</span> / <span id="total-count">0</span>
+                <div class="flex items-center gap-3 shrink-0">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Zoom</span>
+                    <input type="range" min="1000" max="4000" value="2000" 
+                        class="w-24 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500" 
+                        oninput="adjustZoom(this.value)">
+                </div>
             </div>
         </div>
 
+        <!-- メイン表示：画像エリア -->
         <div class="game-container" id="game-container">
             <div id="image-wrapper" class="relative inline-block">
-                <img id="stage-image" src="" alt="Find the cat" class="game-image" 
-                     onclick="checkClick(event)" draggable="false">
+                <img id="stage-image" src="" alt="Game Map" class="game-image" onclick="checkClick(event)" draggable="false">
                 <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
             </div>
         </div>
-
-        <!-- 診断用パネル（画像が出ない時用） -->
-        <div id="diagnostic-panel" class="mt-4 p-4 bg-gray-100 rounded-xl text-xs text-gray-500 w-full max-w-xl">
-            <p class="font-bold border-b mb-2">画像トラブル診断:</p>
-            <p>現在のHTMLの場所: <span id="current-url" class="break-all"></span></p>
-            <p>読み込もうとしている画像: <span id="target-path" class="text-red-600 font-mono"></span></p>
-            <p class="mt-2 text-blue-600 underline cursor-pointer" onclick="checkFileExistence()">[ フォルダ構造のヒントを表示 ]</p>
-        </div>
     </div>
 
-    <!-- トースト演出 -->
-    <div id="toast" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-0 opacity-0 bg-white text-amber-600 px-10 py-5 rounded-full text-3xl font-black shadow-2xl z-50 transition-all duration-300 pointer-events-none border-4 border-amber-400">
-        見つけた！ 🐱✨
+    <!-- 発見通知 -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 scale-0 opacity-0 bg-amber-500 text-white px-8 py-3 rounded-full text-xl font-bold shadow-2xl z-50 transition-all duration-300 pointer-events-none">
+        みつけた！ 🐾
     </div>
 
     <script>
+        // 画像ごとのターゲット（お題）データ
         const stageData = {
             'img/01.PNG': [
-                { x: 44.5, y: 5.6, name: "飛行機のネコ" },
-                { x: 13.5, y: 35.8, name: "灯台の隣のネコ" },
-                { x: 41.1, y: 57.5, name: "道のネコ" },
-                { x: 86.4, y: 29.8, name: "木工所のネコ" },
-                { x: 14.5, y: 71.1, name: "農夫のネコ" },
-                { x: 89.2, y: 88.3, name: "テントのネコ" }
+                { x: 44.5, y: 5.6, text: "青い飛行機を操縦するネコ" },
+                { x: 13.5, y: 35.8, text: "灯台の窓から外を見るネコ" },
+                { x: 41.1, y: 57.5, text: "リュックを背負って歩くネコ" },
+                { x: 86.4, y: 29.8, text: "ツリーハウスのハシゴを登るネコ" },
+                { x: 14.5, y: 71.1, text: "麦わら帽子をかぶった農夫ネコ" },
+                { x: 89.2, y: 88.3, text: "黄色いテントの中で寝ているネコ" },
+                { x: 57.1, y: 22.8, text: "砂浜でパラソルの下にいるネコ" }
             ]
         };
 
@@ -134,35 +139,36 @@
         const gameScreen = document.getElementById('game-screen');
         const stageImage = document.getElementById('stage-image');
         const markerLayer = document.getElementById('marker-layer');
-        const foundCountSpan = document.getElementById('found-count');
-        const totalCountSpan = document.getElementById('total-count');
+        const targetList = document.getElementById('target-list');
         const toast = document.getElementById('toast');
+        const container = document.getElementById('game-container');
 
-        // ページ読み込み時にURLを表示
-        window.onload = () => {
-            document.getElementById('current-url').textContent = window.location.href;
-        };
-
-        function startGame(path, title) {
+        function startGame(path) {
             currentImage = path;
             foundIndices.clear();
             markerLayer.innerHTML = '';
-            
-            // パスの表示（デバッグ用）
-            document.getElementById('target-path').textContent = path;
+            targetList.innerHTML = '';
             
             stageImage.src = path;
             
+            // ターゲットリストの生成
             const targets = stageData[path] || [];
-            foundCountSpan.textContent = "0";
-            totalCountSpan.textContent = targets.length;
+            targets.forEach((t, i) => {
+                const badge = document.createElement('div');
+                badge.className = 'target-item shrink-0 px-4 py-2 rounded-xl bg-amber-50 border-2 border-amber-200 text-sm font-bold text-amber-800 transition-all';
+                badge.id = `target-${i}`;
+                badge.textContent = `探索：${t.text}`;
+                targetList.appendChild(badge);
+            });
 
             startScreen.classList.add('hidden');
             gameScreen.classList.remove('hidden');
-        }
-
-        function checkFileExistence() {
-            alert("確認してください：\n1. このHTMLファイルと同じ場所に「img」という名前のフォルダがありますか？\n2. その中に「01.PNG」という名前の画像がありますか？\n3. 拡張子は「.png」ではなく「.PNG」ですか？");
+            
+            // 中央付近にスクロール
+            setTimeout(() => {
+                container.scrollLeft = (stageImage.width - container.clientWidth) / 2;
+                container.scrollTop = (stageImage.height - container.clientHeight) / 2;
+            }, 100);
         }
 
         function backToMenu() {
@@ -179,24 +185,28 @@
             const xPercent = ((e.clientX - rect.left) / rect.width) * 100;
             const yPercent = ((e.clientY - rect.top) / rect.height) * 100;
 
-            console.log(`{ x: ${xPercent.toFixed(1)}, y: ${yPercent.toFixed(1)}, name: "ネコ" }`);
-
             const targets = stageData[currentImage] || [];
             let isCorrect = false;
 
             targets.forEach((target, index) => {
                 if (foundIndices.has(index)) return;
+
                 const distance = Math.sqrt(Math.pow(xPercent - target.x, 2) + Math.pow(yPercent - target.y, 2));
-                if (distance < 3.0) { 
+                
+                if (distance < 2.8) { // 判定範囲
                     addMarker(target.x, target.y);
                     foundIndices.add(index);
+                    document.getElementById(`target-${index}`).classList.add('found');
                     isCorrect = true;
                 }
             });
 
             if (isCorrect) {
-                updateProgress();
                 showToast();
+                checkClear();
+            } else {
+                // デバッグ用（新しい座標を知りたい時はここを有効に）
+                // console.log(`{ x: ${xPercent.toFixed(1)}, y: ${yPercent.toFixed(1)}, text: "お題" }`);
             }
         }
 
@@ -208,11 +218,12 @@
             markerLayer.appendChild(marker);
         }
 
-        function updateProgress() {
-            foundCountSpan.textContent = foundIndices.size;
-            const targets = stageData[currentImage] || [];
-            if (foundIndices.size === targets.length && targets.length > 0) {
-                setTimeout(() => alert("パーフェクト！全部見つけたよ！🎉"), 500);
+        function checkClear() {
+            const total = stageData[currentImage].length;
+            if (foundIndices.size === total) {
+                setTimeout(() => {
+                    alert("すごい！すべてのネコを見つけ出しました！🎊");
+                }, 600);
             }
         }
 
