@@ -8,29 +8,31 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
         body {
-            background-color: #1a1a1a;
+            background-color: #fffbeb; /* タイトル画面に近いクリーム色 */
             touch-action: none;
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
             margin: 0;
             overflow: hidden;
         }
         .game-screen-layout {
-            display: grid;
-            grid-template-rows: auto 1fr;
+            display: flex;
+            flex-direction: column;
             height: 100vh;
+            width: 100vw;
         }
         .header-panel {
-            background-color: rgba(255, 255, 255, 0.98);
+            background-color: white;
             border-bottom: 4px solid #fbbf24;
             padding: 8px;
-            z-index: 50;
+            z-index: 100;
+            flex-shrink: 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         }
         .viewport {
-            width: 100vw;
-            height: 100%;
+            flex-grow: 1;
             overflow: hidden;
             position: relative;
-            background-color: #262626;
+            background-color: #fffbeb; /* 背景をクリーム色に */
         }
         #panning-layer {
             position: absolute;
@@ -48,14 +50,14 @@
             max-width: none;
         }
 
-        /* ターゲットプレビュー共通 */
+        /* ターゲットプレビュー */
         .target-preview {
-            width: 52px;
-            height: 52px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
-            background-color: #f3f4f6;
+            background-color: #fef3c7;
             flex-shrink: 0;
             position: relative;
         }
@@ -64,8 +66,6 @@
             height: 72px;
             border-width: 4px;
         }
-
-        /* 切り抜き画像の描画ロジック（黒化防止） */
         .crop-img-container {
             position: absolute;
             top: 50%;
@@ -80,8 +80,6 @@
         .crop-img {
             position: absolute;
             max-width: none;
-            /* JSで scale と translate を動的に設定 */
-            transform-origin: center;
         }
 
         .target-preview.found {
@@ -105,7 +103,7 @@
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(120, 53, 15, 0.4); /* 少し茶色寄りの透過 */
             backdrop-filter: blur(6px);
             z-index: 2000;
             display: flex;
@@ -121,7 +119,7 @@
             max-width: 340px;
             padding: 28px;
             text-align: center;
-            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.2);
         }
 
         /* 発見ポップアップ */
@@ -133,7 +131,7 @@
             background: white;
             padding: 24px;
             border-radius: 40px;
-            box-shadow: 0 40px 80px rgba(0,0,0,0.7);
+            box-shadow: 0 40px 80px rgba(0,0,0,0.3);
             z-index: 2500;
             display: flex;
             flex-direction: column;
@@ -141,7 +139,7 @@
             gap: 16px;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 8px solid #fbbf24;
             min-width: 280px;
         }
@@ -156,7 +154,7 @@
             border-radius: 50%;
             overflow: hidden;
             border: 6px solid #fbbf24;
-            background: #eee;
+            background: #fef3c7;
             position: relative;
         }
 
@@ -169,46 +167,42 @@
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 10;
-            background: rgba(239, 68, 68, 0.25);
-            box-shadow: 0 0 0 4px rgba(255,255,255,0.4);
+            background: rgba(239, 68, 68, 0.2);
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- ステージ選択 -->
-    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-amber-50 z-[100] p-4 text-center overflow-y-auto">
-        <div class="max-w-2xl w-full pt-8 pb-12">
-            <h1 class="text-4xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
-            <p class="text-gray-500 mb-8 font-bold">ステージをえらんでね</p>
+    <!-- ステージ選択画面 -->
+    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-[#fffbeb] z-[500] p-4 text-center overflow-y-auto">
+        <div class="max-w-2xl w-full pt-12 pb-12">
+            <h1 class="text-5xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
+            <p class="text-amber-800/60 mb-10 font-bold">隠れているネコをさがそう</p>
             
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="stage-menu">
-                <!-- ステージ 1 -->
-                <button onclick="startGame('img/01.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
-                    <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
-                        <img src="img/01.PNG" class="absolute w-[250%] h-[250%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="stage-menu">
+                <button onclick="startGame('img/01.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                        <img src="img/01.PNG" class="absolute w-[280%] h-[280%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
-                    <span class="block font-black text-amber-700 text-sm truncate">ねこの田舎町</span>
+                    <span class="block font-black text-amber-800 text-base mb-1">ねこの田舎町</span>
                 </button>
 
-                <!-- ステージ 2 -->
-                <button onclick="startGame('img/02.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
-                    <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
-                        <img src="img/02.PNG" class="absolute w-[250%] h-[250%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
+                <button onclick="startGame('img/02.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                        <img src="img/02.PNG" class="absolute w-[280%] h-[280%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
-                    <span class="block font-black text-amber-700 text-sm truncate">ニャンコパーク</span>
+                    <span class="block font-black text-amber-800 text-base mb-1">ニャンコパーク</span>
                 </button>
 
-                <!-- 新ステージ 3 -->
-                <button onclick="startGame('img/03.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
-                    <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
-                        <img src="img/03.PNG" class="absolute w-[250%] h-[250%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
+                <button onclick="startGame('img/03.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                        <img src="img/03.PNG" class="absolute w-[280%] h-[280%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
-                    <span class="block font-black text-amber-700 text-sm truncate">ねこの夜市</span>
+                    <span class="block font-black text-amber-800 text-base mb-1">ねこの夜市</span>
                 </button>
             </div>
-            <p class="mt-8 text-xs text-gray-400 font-bold italic">🐾 2本指で拡大して探してね 🐾</p>
+            <p class="mt-12 text-sm text-amber-900/40 font-bold italic">🐾 2本の指でズームできます 🐾</p>
         </div>
     </div>
 
@@ -223,11 +217,11 @@
 
     <!-- ゲーム画面 -->
     <div id="game-screen" class="hidden game-screen-layout">
-        <div class="header-panel flex items-center justify-between gap-2">
-            <button onclick="location.reload()" class="bg-gray-100 px-3 py-2 rounded-xl text-xs font-black text-gray-500 shrink-0">◀ メニュー</button>
+        <div class="header-panel flex items-center justify-between gap-3">
+            <button onclick="location.reload()" class="bg-amber-100 px-3 py-2 rounded-xl text-xs font-black text-amber-600 shrink-0 shadow-sm active:bg-amber-200">◀ メニュー</button>
             <div id="target-container" class="flex gap-2 overflow-x-auto no-scrollbar flex-1 justify-center py-1"></div>
-            <div class="bg-amber-100 px-3 py-2 rounded-xl shrink-0">
-                <span id="found-count" class="text-amber-600 font-black text-lg">0</span><span class="text-amber-400 font-black text-lg">/5</span>
+            <div class="bg-amber-500 px-3 py-2 rounded-xl shrink-0 shadow-md">
+                <span id="found-count" class="text-white font-black text-lg">0</span><span class="text-amber-200 font-black text-lg">/5</span>
             </div>
         </div>
 
@@ -280,7 +274,7 @@
         let isPopupActive = false;
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0, baseHeight = 0;
-        const SAFE_MARGIN = 40; 
+        const SAFE_MARGIN = 20; 
 
         const panLayer = document.getElementById('panning-layer');
         const view = document.getElementById('viewport');
@@ -290,6 +284,9 @@
         function startGame(path) {
             currentImage = path;
             img.src = path;
+            foundIndices.clear();
+            document.getElementById('found-count').textContent = '0';
+            document.getElementById('marker-layer').innerHTML = '';
             
             img.onload = () => {
                 initGameLayout();
@@ -306,12 +303,10 @@
             const missionContainer = document.getElementById('mission-targets');
             missionContainer.innerHTML = '';
             const targets = stageData[currentImage];
-            
             targets.forEach((t) => {
                 const el = createCropElement(currentImage, t.x, t.y, 8, true);
                 missionContainer.appendChild(el);
             });
-
             document.getElementById('start-mission-popup').classList.remove('hidden');
             isPopupActive = true;
         }
@@ -321,25 +316,18 @@
             isPopupActive = false;
         }
 
-        // 確実にお題を表示するための要素生成（Scaleを使用）
         function createCropElement(path, x, y, zoom, isLarge = false) {
             const wrapper = document.createElement('div');
             wrapper.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
-            
             const container = document.createElement('div');
             container.className = 'crop-img-container';
-            
             const cImg = document.createElement('img');
             cImg.className = 'crop-img';
             cImg.src = path;
-            
-            // ズームと位置の計算
-            // zoom倍にした時、(x, y)% の地点が中心に来るように translate を計算
             cImg.style.width = (zoom * 100) + '%';
             cImg.style.height = (zoom * 100) + '%';
             cImg.style.left = (50 - x * zoom) + '%';
             cImg.style.top = (50 - y * zoom) + '%';
-            
             container.appendChild(cImg);
             wrapper.appendChild(container);
             return wrapper;
@@ -371,6 +359,7 @@
             panLayer.style.padding = `${SAFE_MARGIN}px`;
             transform.scale = 1;
             
+            // 中央に配置
             const totalInitialWidth = baseWidth + (SAFE_MARGIN * 2);
             transform.x = (vw - totalInitialWidth) / 2;
             transform.y = 0;
@@ -385,19 +374,38 @@
             mc.add(new Hammer.Tap());
 
             let startX, startY, startScale;
+            let centerPoint = { x: 0, y: 0 };
 
-            mc.on("panstart pinchstart", () => {
+            mc.on("panstart pinchstart", (ev) => {
                 startX = transform.x;
                 startY = transform.y;
                 startScale = transform.scale;
+                
+                // ズームの中心点を記録（ビューポート上の座標）
+                const rect = view.getBoundingClientRect();
+                centerPoint = {
+                    x: ev.center.x - rect.left,
+                    y: ev.center.y - rect.top
+                };
             });
 
             mc.on("panmove pinchmove", (ev) => {
                 if (isPopupActive) return;
+
+                // ズーム処理
                 let newScale = startScale * (ev.scale || 1);
-                transform.scale = Math.max(1, Math.min(newScale, 4)); // 最大4倍まで拡大
-                transform.x = startX + ev.deltaX;
-                transform.y = startY + ev.deltaY;
+                newScale = Math.max(1, Math.min(newScale, 5));
+                
+                // スケール変化量
+                const scaleRatio = newScale / startScale;
+
+                // 中心点に基づいた位置調整
+                // ズームの中心（指の位置）が動かないように移動量を計算
+                transform.x = centerPoint.x - (centerPoint.x - startX) * scaleRatio + ev.deltaX;
+                transform.y = centerPoint.y - (centerPoint.y - startY) * scaleRatio + ev.deltaY;
+                
+                transform.scale = newScale;
+                
                 applyBoundaries();
                 updateCSS();
             });
@@ -420,12 +428,14 @@
             const curW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
             const curH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
 
+            // 幅の制限
             if (curW <= vw) {
                 transform.x = (vw - curW) / 2;
             } else {
                 transform.x = Math.max(Math.min(0, transform.x), vw - curW);
             }
 
+            // 高さの制限
             if (curH <= vh) {
                 transform.y = (vh - curH) / 2;
             } else {
@@ -441,7 +451,6 @@
             const targets = stageData[currentImage];
             targets.forEach((target, i) => {
                 if (foundIndices.has(i)) return;
-                // ヒット判定は少し余裕を持たせる(5%)
                 const dist = Math.sqrt(Math.pow(x - target.x, 2) + Math.pow(y - target.y, 2));
                 if (dist < 5) {
                     foundIndices.add(i);
@@ -464,14 +473,10 @@
         function showPopup(t) {
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
-            
-            // ポップアップ用に12倍ズームで生成
             const container = document.getElementById('popup-circle-container');
             container.innerHTML = '';
             const cropEl = createCropElement(currentImage, t.x, t.y, 12, true);
-            // 余計な枠を外して中身だけ入れる
             container.appendChild(cropEl.firstChild);
-            
             foundPopup.classList.add('active');
             
             setTimeout(() => {
@@ -486,11 +491,11 @@
         function showClearScreen() {
             setTimeout(() => {
                 const finalClear = document.createElement('div');
-                finalClear.className = "fixed inset-0 bg-white/95 z-[3000] flex flex-col items-center justify-center p-10 text-center";
+                finalClear.className = "fixed inset-0 bg-[#fffbeb]/95 z-[3000] flex flex-col items-center justify-center p-10 text-center";
                 finalClear.innerHTML = `
                     <div class="text-9xl mb-6">🏆</div>
-                    <h2 class="text-5xl font-black text-amber-600 mb-4 italic tracking-tighter">ALL CLEAR!</h2>
-                    <p class="text-xl font-bold text-gray-500 mb-10">すべてのネコを発見しました！<br>キミはネコ探しマスターだね！</p>
+                    <h2 class="text-5xl font-black text-amber-600 mb-4 italic tracking-tighter">STAGE CLEAR!</h2>
+                    <p class="text-xl font-bold text-amber-900/60 mb-10">すべてのネコを見つけたね！</p>
                     <button onclick="location.reload()" class="bg-amber-500 text-white font-black text-2xl py-6 px-12 rounded-[2.5rem] shadow-2xl active:scale-95 transition-transform">メニューへもどる</button>
                 `;
                 document.body.appendChild(finalClear);
