@@ -359,7 +359,7 @@
             missionContainer.innerHTML = '';
             const targets = stageData[currentImage];
             targets.forEach((t) => {
-                const el = createCropElement(currentImage, t.x, t.y, 12, true);
+                const el = createCropElement(currentImage, t.x, t.y, 8, true);
                 missionContainer.appendChild(el);
             });
             document.getElementById('start-mission-popup').classList.remove('hidden');
@@ -392,7 +392,7 @@
             container.innerHTML = '';
             const targets = stageData[path];
             targets.forEach((t, i) => {
-                const el = createCropElement(path, t.x, t.y, 12);
+                const el = createCropElement(path, t.x, t.y, 8);
                 el.id = `preview-${i}`;
                 container.appendChild(el);
             });
