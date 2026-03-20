@@ -50,38 +50,38 @@
 
         /* ターゲットプレビュー共通 */
         .target-preview {
-            width: 48px;
-            height: 48px;
+            width: 52px;
+            height: 52px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
-            background-color: #eee;
+            background-color: #f3f4f6;
             flex-shrink: 0;
             position: relative;
         }
         .target-preview-large {
-            width: 64px;
-            height: 64px;
+            width: 72px;
+            height: 72px;
             border-width: 4px;
         }
 
-        /* 切り抜き画像のコンテナ */
-        .crop-container {
+        /* 切り抜き画像の描画ロジック（黒化防止） */
+        .crop-img-container {
             position: absolute;
             top: 50%;
             left: 50%;
             width: 100%;
             height: 100%;
             transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .crop-img {
             position: absolute;
-            /* ズーム倍率。お題は8倍 */
-            width: 800%;
-            height: 800%;
             max-width: none;
-            object-fit: contain;
-            /* JSで top/left を調整 */
+            /* JSで scale と translate を動的に設定 */
+            transform-origin: center;
         }
 
         .target-preview.found {
@@ -101,12 +101,12 @@
             z-index: 10;
         }
 
-        /* モーダル共通 */
+        /* モーダル */
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(6px);
             z-index: 2000;
             display: flex;
             align-items: center;
@@ -118,13 +118,13 @@
             border-radius: 40px;
             border: 8px solid #fbbf24;
             width: 100%;
-            max-width: 320px;
-            padding: 24px;
+            max-width: 340px;
+            padding: 28px;
             text-align: center;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.6);
         }
 
-        /* 発見ポップアップ（⭕️が大きい） */
+        /* 発見ポップアップ */
         #found-popup {
             position: fixed;
             top: 50%;
@@ -133,15 +133,15 @@
             background: white;
             padding: 24px;
             border-radius: 40px;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+            box-shadow: 0 40px 80px rgba(0,0,0,0.7);
             z-index: 2500;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
             opacity: 0;
             visibility: hidden;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transition: all 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 8px solid #fbbf24;
             min-width: 280px;
         }
@@ -151,30 +151,26 @@
             transform: translate(-50%, -50%) scale(1);
         }
         .popup-circle {
-            width: 150px;
-            height: 150px;
+            width: 160px;
+            height: 160px;
             border-radius: 50%;
             overflow: hidden;
             border: 6px solid #fbbf24;
             background: #eee;
             position: relative;
         }
-        .popup-circle .crop-img {
-            /* ポップアップはさらにズーム！ 12倍 */
-            width: 1200%;
-            height: 1200%;
-        }
 
         .marker {
             position: absolute;
-            width: 60px;
-            height: 60px;
-            border: 5px solid #ef4444;
+            width: 64px;
+            height: 64px;
+            border: 6px solid #ef4444;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 10;
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.25);
+            box-shadow: 0 0 0 4px rgba(255,255,255,0.4);
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
@@ -188,21 +184,31 @@
             <p class="text-gray-500 mb-8 font-bold">ステージをえらんでね</p>
             
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="stage-menu">
+                <!-- ステージ 1 -->
                 <button onclick="startGame('img/01.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
                     <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
-                        <img src="img/01.PNG" class="absolute w-[200%] h-[200%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
+                        <img src="img/01.PNG" class="absolute w-[250%] h-[250%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
                     </div>
                     <span class="block font-black text-amber-700 text-sm truncate">ねこの田舎町</span>
                 </button>
 
+                <!-- ステージ 2 -->
                 <button onclick="startGame('img/02.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
                     <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
-                        <img src="img/02.PNG" class="absolute w-[200%] h-[200%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
+                        <img src="img/02.PNG" class="absolute w-[250%] h-[250%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
                     </div>
                     <span class="block font-black text-amber-700 text-sm truncate">ニャンコパーク</span>
                 </button>
+
+                <!-- 新ステージ 3 -->
+                <button onclick="startGame('img/03.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
+                    <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
+                        <img src="img/03.PNG" class="absolute w-[250%] h-[250%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
+                    </div>
+                    <span class="block font-black text-amber-700 text-sm truncate">ねこの夜市</span>
+                </button>
             </div>
-            <p class="mt-8 text-xs text-gray-400 font-bold">🐾 ピンチで拡大 / スワイプで移動 🐾</p>
+            <p class="mt-8 text-xs text-gray-400 font-bold italic">🐾 2本指で拡大して探してね 🐾</p>
         </div>
     </div>
 
@@ -211,7 +217,7 @@
         <div class="modal-content">
             <h2 class="text-3xl font-black text-amber-600 mb-6 italic">さがしてね！</h2>
             <div id="mission-targets" class="flex flex-wrap justify-center gap-3 mb-8"></div>
-            <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">OK！</button>
+            <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-2xl py-5 rounded-3xl shadow-lg active:scale-95 transition-transform">OK！</button>
         </div>
     </div>
 
@@ -237,30 +243,35 @@
 
     <!-- 発見ポップアップ -->
     <div id="found-popup">
-        <div class="popup-circle">
-            <img id="popup-img" class="crop-img" src="">
-        </div>
+        <div class="popup-circle" id="popup-circle-container"></div>
         <div class="text-center">
-            <p id="found-text" class="text-lg font-black text-gray-800 leading-tight"></p>
-            <p class="text-amber-500 font-black text-xl mt-1 italic animate-bounce">はっけん！🔍</p>
+            <p id="found-text" class="text-lg font-black text-gray-800 leading-tight mb-1"></p>
+            <p class="text-amber-500 font-black text-2xl italic animate-bounce">はっけん！🔍</p>
         </div>
     </div>
 
     <script>
         const stageData = {
             'img/01.PNG': [
-                { x: 44.5, y: 5.6, text: "青い飛行機を操縦するネコ" },
-                { x: 13.5, y: 35.8, text: "灯台の窓から見るネコ" },
-                { x: 41.1, y: 57.5, text: "リュックで歩くネコ" },
+                { x: 44.5, y: 5.6, text: "青い飛行機のネコ" },
+                { x: 13.5, y: 35.8, text: "灯台にいるネコ" },
+                { x: 41.1, y: 57.5, text: "リュックのネコ" },
                 { x: 86.4, y: 29.8, text: "ハシゴをのぼるネコ" },
-                { x: 14.5, y: 71.1, text: "麦わら帽子の農家ネコ" }
+                { x: 14.5, y: 71.1, text: "麦わら帽子のネコ" }
             ],
             'img/02.PNG': [
-                { x: 65.5, y: 19.5, text: "観覧車を楽しむネコ" },
-                { x: 89.5, y: 45.8, text: "お化け屋敷のゆうれいネコ" },
-                { x: 14.2, y: 34.2, text: "海賊船のキャプテン" },
-                { x: 50.0, y: 64.5, text: "王様のパレード" },
-                { x: 69.8, y: 75.2, text: "宇宙飛行士のネコ" }
+                { x: 65.5, y: 19.5, text: "観覧車のネコ" },
+                { x: 89.5, y: 45.8, text: "ゆうれいネコ" },
+                { x: 14.2, y: 34.2, text: "海賊ネコ" },
+                { x: 50.0, y: 64.5, text: "王様ネコ" },
+                { x: 69.8, y: 75.2, text: "宇宙飛行士ネコ" }
+            ],
+            'img/03.PNG': [
+                { x: 13.2, y: 39.8, text: "緑のテントの店主" },
+                { x: 69.8, y: 77.2, text: "水色の服のお客さん" },
+                { x: 55.4, y: 22.8, text: "石像の横に座るネコ" },
+                { x: 28.5, y: 83.5, text: "カゴに入ったネコ" },
+                { x: 46.2, y: 15.5, text: "提灯の上で寝るネコ" }
             ]
         };
 
@@ -279,7 +290,6 @@
         function startGame(path) {
             currentImage = path;
             img.src = path;
-            document.getElementById('popup-img').src = path;
             
             img.onload = () => {
                 initGameLayout();
@@ -298,8 +308,8 @@
             const targets = stageData[currentImage];
             
             targets.forEach((t) => {
-                const div = createCropElement(currentImage, t.x, t.y, true);
-                missionContainer.appendChild(div);
+                const el = createCropElement(currentImage, t.x, t.y, 8, true);
+                missionContainer.appendChild(el);
             });
 
             document.getElementById('start-mission-popup').classList.remove('hidden');
@@ -311,21 +321,28 @@
             isPopupActive = false;
         }
 
-        function createCropElement(path, x, y, isLarge = false) {
-            const div = document.createElement('div');
-            div.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
+        // 確実にお題を表示するための要素生成（Scaleを使用）
+        function createCropElement(path, x, y, zoom, isLarge = false) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
+            
+            const container = document.createElement('div');
+            container.className = 'crop-img-container';
             
             const cImg = document.createElement('img');
             cImg.className = 'crop-img';
             cImg.src = path;
             
-            // ズーム位置計算 (8倍ズーム時)
-            // 8倍にしているので、画像の中心をターゲットに向ける
-            cImg.style.left = `${50 - x * 8}%`;
-            cImg.style.top = `${50 - y * 8}%`;
+            // ズームと位置の計算
+            // zoom倍にした時、(x, y)% の地点が中心に来るように translate を計算
+            cImg.style.width = (zoom * 100) + '%';
+            cImg.style.height = (zoom * 100) + '%';
+            cImg.style.left = (50 - x * zoom) + '%';
+            cImg.style.top = (50 - y * zoom) + '%';
             
-            div.appendChild(cImg);
-            return div;
+            container.appendChild(cImg);
+            wrapper.appendChild(container);
+            return wrapper;
         }
 
         function createTargets(path) {
@@ -333,9 +350,9 @@
             container.innerHTML = '';
             const targets = stageData[path];
             targets.forEach((t, i) => {
-                const div = createCropElement(path, t.x, t.y);
-                div.id = `preview-${i}`;
-                container.appendChild(div);
+                const el = createCropElement(path, t.x, t.y, 8);
+                el.id = `preview-${i}`;
+                container.appendChild(el);
             });
         }
 
@@ -378,7 +395,7 @@
             mc.on("panmove pinchmove", (ev) => {
                 if (isPopupActive) return;
                 let newScale = startScale * (ev.scale || 1);
-                transform.scale = Math.max(1, Math.min(newScale, 3));
+                transform.scale = Math.max(1, Math.min(newScale, 4)); // 最大4倍まで拡大
                 transform.x = startX + ev.deltaX;
                 transform.y = startY + ev.deltaY;
                 applyBoundaries();
@@ -424,8 +441,9 @@
             const targets = stageData[currentImage];
             targets.forEach((target, i) => {
                 if (foundIndices.has(i)) return;
+                // ヒット判定は少し余裕を持たせる(5%)
                 const dist = Math.sqrt(Math.pow(x - target.x, 2) + Math.pow(y - target.y, 2));
-                if (dist < 4) {
+                if (dist < 5) {
                     foundIndices.add(i);
                     addMarker(target.x, target.y);
                     document.getElementById(`preview-${i}`).classList.add('found');
@@ -446,30 +464,37 @@
         function showPopup(t) {
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
-            const pImg = document.getElementById('popup-img');
             
-            // ポップアップ用ズーム (12倍ズーム時)
-            pImg.style.left = `${50 - t.x * 12}%`;
-            pImg.style.top = `${50 - t.y * 12}%`;
+            // ポップアップ用に12倍ズームで生成
+            const container = document.getElementById('popup-circle-container');
+            container.innerHTML = '';
+            const cropEl = createCropElement(currentImage, t.x, t.y, 12, true);
+            // 余計な枠を外して中身だけ入れる
+            container.appendChild(cropEl.firstChild);
             
             foundPopup.classList.add('active');
+            
             setTimeout(() => {
                 foundPopup.classList.remove('active');
                 isPopupActive = false;
                 if(foundIndices.size === 5) {
-                    setTimeout(() => {
-                        const finalClear = document.createElement('div');
-                        finalClear.className = "fixed inset-0 bg-white/95 z-[3000] flex flex-col items-center justify-center p-10 text-center";
-                        finalClear.innerHTML = `
-                            <div class="text-9xl mb-6">🎉</div>
-                            <h2 class="text-5xl font-black text-amber-600 mb-4 italic">STAGE CLEAR!</h2>
-                            <p class="text-xl font-bold text-gray-500 mb-10">すべてのネコを見つけたね！</p>
-                            <button onclick="location.reload()" class="bg-amber-500 text-white font-black text-2xl py-6 px-12 rounded-[2.5rem] shadow-2xl active:scale-95 transition-transform">メニューへもどる</button>
-                        `;
-                        document.body.appendChild(finalClear);
-                    }, 500);
+                    showClearScreen();
                 }
-            }, 2000);
+            }, 2500);
+        }
+
+        function showClearScreen() {
+            setTimeout(() => {
+                const finalClear = document.createElement('div');
+                finalClear.className = "fixed inset-0 bg-white/95 z-[3000] flex flex-col items-center justify-center p-10 text-center";
+                finalClear.innerHTML = `
+                    <div class="text-9xl mb-6">🏆</div>
+                    <h2 class="text-5xl font-black text-amber-600 mb-4 italic tracking-tighter">ALL CLEAR!</h2>
+                    <p class="text-xl font-bold text-gray-500 mb-10">すべてのネコを発見しました！<br>キミはネコ探しマスターだね！</p>
+                    <button onclick="location.reload()" class="bg-amber-500 text-white font-black text-2xl py-6 px-12 rounded-[2.5rem] shadow-2xl active:scale-95 transition-transform">メニューへもどる</button>
+                `;
+                document.body.appendChild(finalClear);
+            }, 500);
         }
     </script>
 </body>
