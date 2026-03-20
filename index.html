@@ -2,28 +2,38 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- touch-action: manipulation を追加してダブルタップズームを抑制 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Find the Cats! - 猫探しゲーム</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
         body {
             background-color: #fffbeb;
-            touch-action: none;
+            /* ブラウザ標準のジェスチャーを無効化 */
+            touch-action: none; 
+            -webkit-user-select: none;
+            user-select: none;
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
             margin: 0;
             overflow: hidden;
+            width: 100vw;
+            height: 100vh;
         }
         .game-screen-layout {
             display: flex;
             flex-direction: column;
             height: 100vh;
             width: 100vw;
+            position: fixed; /* 画面を固定してスクロールを防ぐ */
+            top: 0;
+            left: 0;
         }
         .header-panel {
             background-color: white;
             border-bottom: 4px solid #fbbf24;
             padding: 8px;
+            padding-top: env(safe-area-inset-top, 8px); /* iPhone等のノッチ対応 */
             z-index: 100;
             flex-shrink: 0;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
@@ -232,6 +242,16 @@
     </div>
 
     <script>
+        // ダブルタップによるブラウザズームを完全に防止するスクリプト
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (event) => {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
         const stageData = {
             'img/01.PNG': [
                 { x: 44.5, y: 5.6, text: "青い飛行機のネコ" },
@@ -293,7 +313,7 @@
             missionContainer.innerHTML = '';
             const targets = stageData[currentImage];
             targets.forEach((t) => {
-                const el = createCropElement(currentImage, t.x, t.y, 20, true);
+                const el = createCropElement(currentImage, t.x, t.y, 12, true);
                 missionContainer.appendChild(el);
             });
             document.getElementById('start-mission-popup').classList.remove('hidden');
@@ -305,22 +325,11 @@
             isPopupActive = false;
         }
 
-        /**
-         * 修正版：座標が「枠の真ん中」に来るように background-position を計算
-         * 通常の % 指定だと「画像の地点 %」を「枠の地点 %」に合わせるため中心がズレる
-         * 計算式: (x / 100 * 画像幅 - 枠幅 / 2) / (画像幅 - 枠幅) * 100
-         * CSS の background-position % の仕組みを逆算して補正
-         */
         function applyCropStyle(el, path, x, y, zoom) {
             el.style.backgroundImage = `url('${path}')`;
             el.style.backgroundSize = `${zoom * 100}% auto`;
-            
-            // 補正計算: ズーム倍率を Z とすると
-            // 画像上の座標 x% を中央に持ってくるための background-position P% は
-            // P = (x * Z - 50) / (Z - 1)
             const pX = (x * zoom - 50) / (zoom - 1);
             const pY = (y * zoom - 50) / (zoom - 1);
-            
             el.style.backgroundPosition = `${pX}% ${pY}%`;
         }
 
@@ -336,7 +345,7 @@
             container.innerHTML = '';
             const targets = stageData[path];
             targets.forEach((t, i) => {
-                const el = createCropElement(path, t.x, t.y, 9);
+                const el = createCropElement(path, t.x, t.y, 12);
                 el.id = `preview-${i}`;
                 container.appendChild(el);
             });
@@ -468,10 +477,7 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             const container = document.getElementById('popup-circle-container');
-            
-            // ズーム10倍で座標を中心に合わせる
             applyCropStyle(container, currentImage, t.x, t.y, 10);
-            
             foundPopup.classList.add('active');
             
             setTimeout(() => {
