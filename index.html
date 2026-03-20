@@ -5,12 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Find the Cats! - 猫探しゲーム</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- スマホ操作（ピンチ・ドラッグ）用のライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
         body {
             background-color: #1a1a1a;
-            touch-action: none; /* ブラウザのデフォルト動作を抑制 */
+            touch-action: none;
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
             margin: 0;
             overflow: hidden;
@@ -23,7 +22,7 @@
         .header-panel {
             background-color: rgba(255, 255, 255, 0.98);
             border-bottom: 4px solid #fbbf24;
-            padding: 10px;
+            padding: 8px;
             z-index: 50;
         }
         .viewport {
@@ -38,30 +37,17 @@
             transform-origin: 0 0;
             will-change: transform;
         }
-        .game-image {
+        #stage-image {
             display: block;
-            width: 1000px; /* 基準幅 */
-            height: auto;
+            height: 100%; /* 初期状態は高さ100% */
+            width: auto;
             user-select: none;
             -webkit-user-drag: none;
         }
-        .marker {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            border: 5px solid #ef4444;
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            pointer-events: none;
-            z-index: 10;
-            box-shadow: 0 0 15px rgba(239, 68, 68, 0.6);
-            background: rgba(239, 68, 68, 0.1);
-        }
-        
         /* ターゲットプレビュー */
         .target-preview {
-            width: 55px;
-            height: 55px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
@@ -69,15 +55,17 @@
             background-color: #333;
             flex-shrink: 0;
         }
-        .target-preview img, .popup-circle img {
+        .crop-img {
             position: absolute;
-            width: 800%; /* 切り抜きズーム */
+            width: 1000%; /* かなり大きくズームして切り抜く */
             max-width: none;
             transform: translate(-50%, -50%);
+            top: 50%;
+            left: 50%;
         }
         .target-preview.found {
             border-color: #10b981;
-            opacity: 0.4;
+            opacity: 0.3;
         }
         .target-preview.found::after {
             content: '✓';
@@ -98,19 +86,18 @@
             left: 50%;
             transform: translate(-50%, -50%) scale(0.5);
             background: white;
-            padding: 24px;
-            border-radius: 40px;
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6);
+            padding: 20px;
+            border-radius: 30px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
             z-index: 1000;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             opacity: 0;
             visibility: hidden;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 8px solid #fbbf24;
-            min-width: 240px;
+            border: 6px solid #fbbf24;
         }
         #found-popup.active {
             opacity: 1;
@@ -118,244 +105,242 @@
             transform: translate(-50%, -50%) scale(1);
         }
         .popup-circle {
-            width: 140px;
-            height: 140px;
+            width: 120px;
+            height: 120px;
             border-radius: 50%;
             overflow: hidden;
             position: relative;
-            border: 5px solid #fbbf24;
-            background: #fff;
+            border: 4px solid #fbbf24;
         }
-
+        .popup-circle img {
+            position: absolute;
+            width: 1000%;
+            max-width: none;
+            transform: translate(-50%, -50%);
+            top: 50%;
+            left: 50%;
+        }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
 
     <!-- スタート画面 -->
-    <div id="start-screen" class="fixed inset-0 flex items-center justify-center bg-amber-50 z-[100] p-6">
-        <div class="max-w-md w-full bg-white p-10 rounded-[3rem] shadow-2xl border-8 border-amber-200 text-center">
-            <h1 class="text-5xl font-black text-amber-600 mb-2 tracking-tighter italic">Find Cats!</h1>
-            <p class="text-gray-500 mb-8 font-bold">特別な5匹のネコをさがそう！</p>
-            
-            <button onclick="startGame('img/01.PNG')" 
-                class="w-full group overflow-hidden rounded-3xl border-4 border-amber-400 hover:bg-amber-400 transition-all p-4 bg-white shadow-xl">
-                <div class="aspect-video bg-gray-100 rounded-xl mb-4 overflow-hidden border">
-                    <img src="img/01.PNG" alt="Stage 1" class="w-full h-full object-cover">
-                </div>
-                <span class="font-bold text-2xl text-amber-800 group-hover:text-white">スタート！</span>
+    <div id="start-screen" class="fixed inset-0 flex items-center justify-center bg-amber-50 z-[100] p-6 text-center">
+        <div class="max-w-md w-full bg-white p-8 rounded-[2.5rem] shadow-2xl border-4 border-amber-200">
+            <h1 class="text-4xl font-black text-amber-600 mb-2 italic">Find Cats!</h1>
+            <p class="text-gray-500 mb-6 font-bold">5匹のネコをさがしてね</p>
+            <button onclick="startGame('img/01.PNG')" class="w-full rounded-2xl p-4 bg-amber-500 text-white font-bold text-xl shadow-lg hover:bg-amber-600 transition">
+                スタート！
             </button>
-            <p class="text-[10px] text-gray-400 mt-4">スマホ：ピンチで拡大・スワイプで移動</p>
         </div>
     </div>
 
     <!-- ゲーム画面 -->
     <div id="game-screen" class="hidden game-screen-layout">
-        
-        <div class="header-panel shadow-lg">
-            <div class="max-w-6xl mx-auto flex items-center justify-between gap-4">
-                <button onclick="backToMenu()" class="bg-gray-100 p-2 rounded-xl shrink-0">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                </button>
-                
-                <div id="target-container" class="flex gap-2 overflow-x-auto no-scrollbar py-1 flex-1 justify-center">
-                    <!-- ターゲットアイコン -->
-                </div>
-
-                <div class="text-amber-500 font-black text-xl shrink-0">
-                    <span id="found-count">0</span>/5
-                </div>
-            </div>
+        <div class="header-panel flex items-center justify-between gap-2">
+            <button onclick="location.reload()" class="bg-gray-100 p-2 rounded-lg text-xs font-bold text-gray-600 shrink-0">◀戻る</button>
+            <div id="target-container" class="flex gap-2 overflow-x-auto no-scrollbar flex-1 justify-center py-1"></div>
+            <div class="text-amber-500 font-black text-lg px-2 shrink-0"><span id="found-count">0</span>/5</div>
         </div>
 
         <div class="viewport" id="viewport">
             <div id="panning-layer">
-                <img id="stage-image" src="" alt="Find Map" class="game-image" draggable="false">
+                <img id="stage-image" src="" alt="Find Map" draggable="false">
                 <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
             </div>
         </div>
     </div>
 
-    <!-- 発見ポップアップ -->
+    <!-- ポップアップ -->
     <div id="found-popup">
-        <div class="popup-circle">
-            <img id="popup-img" src="" alt="Found target">
-        </div>
+        <div class="popup-circle"><img id="popup-img" src=""></div>
         <div class="text-center">
-            <p id="found-text" class="text-xl font-black text-gray-800 leading-tight"></p>
-            <p class="text-amber-500 font-black text-2xl mt-1 italic">はっけん！🔍</p>
-        </div>
-    </div>
-
-    <!-- クリア画面 -->
-    <div id="clear-modal" class="fixed inset-0 bg-black/90 hidden z-[200] flex items-center justify-center p-6">
-        <div class="bg-white rounded-[3rem] p-10 text-center max-w-sm">
-            <div class="text-7xl mb-4">✨😻✨</div>
-            <h2 class="text-3xl font-black text-gray-800 mb-2">COMPLETE!</h2>
-            <p class="text-gray-500 mb-6 font-bold">全部のネコを見つけたね！</p>
-            <button onclick="backToMenu()" class="w-full bg-amber-500 text-white font-black py-4 rounded-2xl text-xl shadow-lg">
-                もういちど遊ぶ
-            </button>
+            <p id="found-text" class="text-lg font-black text-gray-800"></p>
+            <p class="text-amber-500 font-bold text-xl italic">はっけん！🔍</p>
         </div>
     </div>
 
     <script>
         const stageData = {
             'img/01.PNG': [
-                { x: 44.5, y: 5.6, text: "青い飛行機を操縦するネコ" },
-                { x: 13.5, y: 35.8, text: "灯台の窓から見ているネコ" },
-                { x: 41.1, y: 57.5, text: "リュックを背負ったネコ" },
+                { x: 44.5, y: 5.6, text: "飛行機を操縦するネコ" },
+                { x: 13.5, y: 35.8, text: "灯台の窓から見るネコ" },
+                { x: 41.1, y: 57.5, text: "リュックで歩くネコ" },
                 { x: 86.4, y: 29.8, text: "ハシゴをのぼるネコ" },
-                { x: 14.5, y: 71.1, text: "麦わら帽子の農家ネコ" }
+                { x: 14.5, y: 71.1, text: "農家のネコ" }
             ]
         };
 
         let currentImage = "";
         let foundIndices = new Set();
         let isPopupActive = false;
+        
+        // 座標とズームの状態
+        let transform = { x: 0, y: 0, scale: 1 };
+        let baseWidth = 0;
+        let baseHeight = 0;
 
-        // Hammer.js State
-        let transform = { translate: { x: 0, y: 0 }, scale: 1.5 };
-        let startTransform = { translate: { x: 0, y: 0 }, scale: 1.5 };
-
-        const panningLayer = document.getElementById('panning-layer');
-        const viewport = document.getElementById('viewport');
-        const stageImage = document.getElementById('stage-image');
-        const markerLayer = document.getElementById('marker-layer');
-        const targetContainer = document.getElementById('target-container');
-        const clearModal = document.getElementById('clear-modal');
+        const panLayer = document.getElementById('panning-layer');
+        const view = document.getElementById('viewport');
+        const img = document.getElementById('stage-image');
         const foundPopup = document.getElementById('found-popup');
-        const popupImg = document.getElementById('popup-img');
-        const foundText = document.getElementById('found-text');
-        const foundCountSpan = document.getElementById('found-count');
 
         function startGame(path) {
             currentImage = path;
-            foundIndices.clear();
-            markerLayer.innerHTML = '';
-            targetContainer.innerHTML = '';
-            foundCountSpan.textContent = "0";
+            img.src = path;
+            document.getElementById('popup-img').src = path;
             
-            stageImage.src = path;
-            popupImg.src = path;
+            img.onload = () => {
+                initGameLayout();
+                createTargets(path);
+                setupInteractions();
+            };
+
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+        }
+
+        function initGameLayout() {
+            // 画像の「高さ」を画面の高さに合わせる
+            const vh = view.clientHeight;
+            const vw = view.clientWidth;
             
-            const targets = stageData[path] || [];
+            // 画像本来の比率から、高さ100%にした時の幅を計算
+            const ratio = img.naturalWidth / img.naturalHeight;
+            baseHeight = vh;
+            baseWidth = vh * ratio;
+            
+            img.style.height = baseHeight + 'px';
+            img.style.width = baseWidth + 'px';
+            
+            // 初期状態：中央寄せ（幅が画面より広い場合）
+            transform.scale = 1;
+            transform.x = Math.min(0, (vw - baseWidth) / 2);
+            transform.y = 0;
+            
+            updateCSS();
+        }
+
+        function createTargets(path) {
+            const container = document.getElementById('target-container');
+            const targets = stageData[path];
             targets.forEach((t, i) => {
                 const div = document.createElement('div');
                 div.className = 'target-preview';
                 div.id = `preview-${i}`;
-                const img = document.createElement('img');
-                img.src = path;
-                // 切り抜き座標の正確なセット (center: 50%)
-                img.style.left = t.x + '%';
-                img.style.top = t.y + '%';
-                div.appendChild(img);
-                targetContainer.appendChild(div);
+                const cImg = document.createElement('img');
+                cImg.className = 'crop-img';
+                cImg.src = path;
+                // ネコが中央に来るように座標を反転
+                cImg.style.marginLeft = (50 - t.x) * 10 + '%'; 
+                cImg.style.marginTop = (50 - t.y) * 10 + '%';
+                div.appendChild(cImg);
+                container.appendChild(div);
             });
-
-            document.getElementById('start-screen').classList.add('hidden');
-            document.getElementById('game-screen').classList.remove('hidden');
-            
-            // 初期位置のリセット
-            transform = { translate: { x: -200, y: -100 }, scale: 1.5 };
-            updateTransform();
-            setupHammer();
         }
 
-        function updateTransform() {
-            panningLayer.style.transform = `translate(${transform.translate.x}px, ${transform.translate.y}px) scale(${transform.scale})`;
-        }
-
-        function setupHammer() {
-            const mc = new Hammer.Manager(viewport);
+        function setupInteractions() {
+            const mc = new Hammer.Manager(view);
             mc.add(new Hammer.Pan({ threshold: 0, pointers: 0 }));
             mc.add(new Hammer.Pinch({ threshold: 0 })).recognizeWith(mc.get('pan'));
             mc.add(new Hammer.Tap());
 
-            mc.on("panstart pinchstart", (ev) => {
-                startTransform = { 
-                    translate: { x: transform.translate.x, y: transform.translate.y }, 
-                    scale: transform.scale 
-                };
+            let startX, startY, startScale;
+
+            mc.on("panstart pinchstart", () => {
+                startX = transform.x;
+                startY = transform.y;
+                startScale = transform.scale;
             });
 
             mc.on("panmove pinchmove", (ev) => {
                 if (isPopupActive) return;
-                
-                // スケールの更新
-                let newScale = startTransform.scale * ev.scale;
-                transform.scale = Math.max(0.5, Math.min(newScale, 5));
 
-                // 位置の更新
-                transform.translate.x = startTransform.translate.x + ev.deltaX;
-                transform.translate.y = startTransform.translate.y + ev.deltaY;
-                
-                updateTransform();
+                // スケール計算 (1倍〜2倍)
+                let newScale = startScale * (ev.scale || 1);
+                transform.scale = Math.max(1, Math.min(newScale, 2));
+
+                // 移動計算
+                transform.x = startX + ev.deltaX;
+                transform.y = startY + ev.deltaY;
+
+                applyBoundaries();
+                updateCSS();
             });
 
             mc.on("tap", (ev) => {
                 if (isPopupActive) return;
-                
-                // タップ座標を画像内相対座標(%)に変換
-                const rect = panningLayer.getBoundingClientRect();
-                const x = ((ev.center.x - rect.left) / rect.width) * 100;
-                const y = ((ev.center.y - rect.top) / rect.height) * 100;
-                
-                checkHit(x, y);
+                const rect = panLayer.getBoundingClientRect();
+                const xPct = ((ev.center.x - rect.left) / rect.width) * 100;
+                const yPct = ((ev.center.y - rect.top) / rect.height) * 100;
+                checkHit(xPct, yPct);
             });
         }
 
-        function checkHit(x, y) {
-            const targets = stageData[currentImage] || [];
-            let hitIndex = -1;
+        function applyBoundaries() {
+            const vw = view.clientWidth;
+            const vh = view.clientHeight;
+            const curW = baseWidth * transform.scale;
+            const curH = baseHeight * transform.scale;
 
-            targets.forEach((target, index) => {
-                if (foundIndices.has(index)) return;
-                const dist = Math.sqrt(Math.pow(x - target.x, 2) + Math.pow(y - target.y, 2));
-                if (dist < 3.5) hitIndex = index; // スマホ用に少し判定を広めに
-            });
+            // X軸の制限
+            if (curW <= vw) {
+                transform.x = (vw - curW) / 2; // 画面より小さい時は中央
+            } else {
+                transform.x = Math.max(Math.min(0, transform.x), vw - curW);
+            }
 
-            if (hitIndex !== -1) {
-                const target = targets[hitIndex];
-                foundIndices.add(hitIndex);
-                addMarker(target.x, target.y);
-                document.getElementById(`preview-${hitIndex}`).classList.add('found');
-                foundCountSpan.textContent = foundIndices.size;
-                showDiscoveryPopup(target);
+            // Y軸の制限
+            if (curH <= vh) {
+                transform.y = (vh - curH) / 2;
+            } else {
+                transform.y = Math.max(Math.min(0, transform.y), vh - curH);
             }
         }
 
-        function addMarker(x, y) {
-            const marker = document.createElement('div');
-            marker.className = 'marker';
-            marker.style.left = x + '%';
-            marker.style.top = y + '%';
-            markerLayer.appendChild(marker);
+        function updateCSS() {
+            panLayer.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
         }
 
-        function showDiscoveryPopup(target) {
+        function checkHit(x, y) {
+            const targets = stageData[currentImage];
+            targets.forEach((target, i) => {
+                if (foundIndices.has(i)) return;
+                const dist = Math.sqrt(Math.pow(x - target.x, 2) + Math.pow(y - target.y, 2));
+                if (dist < 3.5) {
+                    foundIndices.add(i);
+                    addMarker(target.x, target.y);
+                    document.getElementById(`preview-${i}`).classList.add('found');
+                    document.getElementById('found-count').textContent = foundIndices.size;
+                    showPopup(target);
+                }
+            });
+        }
+
+        function addMarker(x, y) {
+            const m = document.createElement('div');
+            m.className = 'marker';
+            m.style.left = x + '%';
+            m.style.top = y + '%';
+            document.getElementById('marker-layer').appendChild(m);
+        }
+
+        function showPopup(t) {
             isPopupActive = true;
-            foundText.textContent = target.text;
+            document.getElementById('found-text').textContent = t.text;
+            const pImg = document.getElementById('popup-img');
+            pImg.style.marginLeft = (50 - t.x) * 10 + '%';
+            pImg.style.marginTop = (50 - t.y) * 10 + '%';
             
-            // ポップアップ内の切り抜き位置調整
-            popupImg.style.left = target.x + '%';
-            popupImg.style.top = target.y + '%';
-
             foundPopup.classList.add('active');
-
             setTimeout(() => {
                 foundPopup.classList.remove('active');
                 isPopupActive = false;
-                if (foundIndices.size === 5) {
-                    setTimeout(() => clearModal.classList.remove('hidden'), 500);
+                if(foundIndices.size === 5) {
+                    setTimeout(() => alert("クリア！おめでとう！"), 500);
                 }
             }, 2000);
-        }
-
-        function backToMenu() {
-            location.reload(); // 状態をクリーンにするためリロード
         }
     </script>
 </body>
