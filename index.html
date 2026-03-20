@@ -50,10 +50,10 @@
             outline: 2px solid rgba(251, 191, 36, 0.3);
         }
 
-        /* ターゲットプレビュー（枠いっぱいに表示） */
+        /* ターゲットプレビュー */
         .target-preview {
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
@@ -63,11 +63,10 @@
         }
         .crop-img {
             position: absolute;
-            /* width/heightを大きくして枠を埋める */
-            width: 500%; 
+            width: 500%; /* 親の5倍のサイズにしてズーム効果 */
             height: 500%;
             object-fit: cover;
-            /* object-position はJSで設定 */
+            /* JSで top/left/object-position を制御 */
         }
         .target-preview.found {
             border-color: #10b981;
@@ -86,7 +85,7 @@
             z-index: 10;
         }
 
-        /* 発見ポップアップ */
+        /* ポップアップ */
         #found-popup {
             position: fixed;
             top: 50%;
@@ -123,11 +122,10 @@
         }
         .popup-circle img {
             position: absolute;
-            width: 800%; /* ポップアップ用により大きくズーム */
+            width: 800%; /* さらに大きくズーム */
             height: 800%;
             object-fit: cover;
         }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
 
         .marker {
             position: absolute;
@@ -140,61 +138,67 @@
             z-index: 10;
             background: rgba(239, 68, 68, 0.1);
         }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- ステージ選択 -->
-    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-center bg-amber-50 z-[100] p-6 text-center overflow-y-auto">
-        <div class="max-w-xl w-full bg-white p-8 rounded-[3rem] shadow-2xl border-4 border-amber-200 my-auto">
-            <h1 class="text-5xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
+    <!-- ステージ選択画面 -->
+    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-amber-50 z-[100] p-4 text-center overflow-y-auto">
+        <div class="max-w-2xl w-full pt-8 pb-12">
+            <h1 class="text-4xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
             <p class="text-gray-500 mb-8 font-bold">ステージをえらんでね</p>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button onclick="startGame('img/01.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-3 hover:border-amber-400 transition-all shadow-md active:scale-95">
-                    <div class="aspect-[9/16] rounded-2xl overflow-hidden mb-3">
-                        <img src="img/01.PNG" class="w-full h-full object-cover">
+            <!-- グリッドを小さくして多ステージに対応 -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="stage-menu">
+                <!-- img/01.PNG -->
+                <button onclick="startGame('img/01.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
+                    <div class="aspect-square rounded-xl overflow-hidden mb-2">
+                        <img src="img/01.PNG" class="w-full h-full object-cover object-center scale-150">
                     </div>
-                    <span class="block font-black text-amber-700 text-lg">ねこの田舎町</span>
+                    <span class="block font-black text-amber-700 text-sm truncate">ねこの田舎町</span>
                 </button>
 
-                <button onclick="startGame('img/02.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-3 hover:border-amber-400 transition-all shadow-md active:scale-95">
-                    <div class="aspect-[9/16] rounded-2xl overflow-hidden mb-3">
-                        <img src="img/02.PNG" class="w-full h-full object-cover">
+                <!-- img/02.PNG -->
+                <button onclick="startGame('img/02.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
+                    <div class="aspect-square rounded-xl overflow-hidden mb-2">
+                        <img src="img/02.PNG" class="w-full h-full object-cover object-center scale-150">
                     </div>
-                    <span class="block font-black text-amber-700 text-lg">ニャンコパーク</span>
+                    <span class="block font-black text-amber-700 text-sm truncate">ニャンコパーク</span>
                 </button>
             </div>
+            
             <p class="mt-8 text-xs text-gray-400 font-bold">🐾 ピンチで拡大 / スワイプで移動 🐾</p>
         </div>
     </div>
 
-    <!-- ゲーム画面 -->
+    <!-- ゲームメイン画面 -->
     <div id="game-screen" class="hidden game-screen-layout">
-        <div class="header-panel flex items-center justify-between gap-4">
-            <button onclick="location.reload()" class="bg-gray-100 px-4 py-2 rounded-2xl text-sm font-black text-gray-500 shrink-0">◀ メニュー</button>
-            <div id="target-container" class="flex gap-3 overflow-x-auto no-scrollbar flex-1 justify-center py-1"></div>
-            <div class="bg-amber-100 px-4 py-2 rounded-2xl shrink-0">
-                <span id="found-count" class="text-amber-600 font-black text-xl">0</span><span class="text-amber-400 font-black text-xl">/5</span>
+        <div class="header-panel flex items-center justify-between gap-2">
+            <button onclick="location.reload()" class="bg-gray-100 px-3 py-2 rounded-xl text-xs font-black text-gray-500 shrink-0">◀ メニュー</button>
+            <div id="target-container" class="flex gap-2 overflow-x-auto no-scrollbar flex-1 justify-center py-1"></div>
+            <div class="bg-amber-100 px-3 py-2 rounded-xl shrink-0">
+                <span id="found-count" class="text-amber-600 font-black text-lg">0</span><span class="text-amber-400 font-black text-lg">/5</span>
             </div>
         </div>
 
         <div class="viewport" id="viewport">
             <div id="panning-layer">
                 <div id="stage-container">
-                    <img id="stage-image" src="" alt="Find Map" draggable="false">
+                    <img id="stage-image" src="" alt="Game Map" draggable="false">
                     <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ポップアップ -->
+    <!-- 発見ポップアップ -->
     <div id="found-popup">
         <div class="popup-circle"><img id="popup-img" src=""></div>
         <div class="text-center">
-            <p id="found-text" class="text-xl font-black text-gray-800 leading-tight"></p>
-            <p class="text-amber-500 font-black text-2xl mt-1 italic animate-bounce">はっけん！🔍</p>
+            <p id="found-text" class="text-lg font-black text-gray-800 leading-tight"></p>
+            <p class="text-amber-500 font-black text-xl mt-1 italic animate-bounce">はっけん！🔍</p>
         </div>
     </div>
 
@@ -219,7 +223,6 @@
         let currentImage = "";
         let foundIndices = new Set();
         let isPopupActive = false;
-        
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0;
         let baseHeight = 0;
@@ -248,7 +251,6 @@
         function initGameLayout() {
             const vh = view.clientHeight;
             const vw = view.clientWidth;
-            
             const availableHeight = vh - (SAFE_MARGIN * 2);
             const ratio = img.naturalWidth / img.naturalHeight;
             
@@ -280,10 +282,11 @@
                 const cImg = document.createElement('img');
                 cImg.className = 'crop-img';
                 cImg.src = path;
-                // 枠いっぱいに表示するため中央に寄せる
-                cImg.style.left = "-200%"; 
-                cImg.style.top = "-200%";
-                cImg.style.objectPosition = `${t.x}% ${t.y}%`;
+                
+                // 画像が黒くならないよう、中央からの位置を計算
+                // 500%サイズなので、画像の中央は250%地点。そこからターゲット座標分ずらす。
+                cImg.style.left = `${50 - t.x * 5}%`;
+                cImg.style.top = `${50 - t.y * 5}%`;
                 
                 div.appendChild(cImg);
                 container.appendChild(div);
@@ -306,13 +309,10 @@
 
             mc.on("panmove pinchmove", (ev) => {
                 if (isPopupActive) return;
-
                 let newScale = startScale * (ev.scale || 1);
                 transform.scale = Math.max(1, Math.min(newScale, 3));
-
                 transform.x = startX + ev.deltaX;
                 transform.y = startY + ev.deltaY;
-
                 applyBoundaries();
                 updateCSS();
             });
@@ -320,10 +320,8 @@
             mc.on("tap", (ev) => {
                 if (isPopupActive) return;
                 const rect = img.getBoundingClientRect(); 
-                
                 if (ev.center.x >= rect.left && ev.center.x <= rect.right &&
                     ev.center.y >= rect.top && ev.center.y <= rect.bottom) {
-                    
                     const xPct = ((ev.center.x - rect.left) / rect.width) * 100;
                     const yPct = ((ev.center.y - rect.top) / rect.height) * 100;
                     checkHit(xPct, yPct);
@@ -382,10 +380,9 @@
             document.getElementById('found-text').textContent = t.text;
             const pImg = document.getElementById('popup-img');
             
-            // ポップアップ用ズーム（枠全体を埋める）
-            pImg.style.left = "-350%"; 
-            pImg.style.top = "-350%";
-            pImg.style.objectPosition = `${t.x}% ${t.y}%`;
+            // ポップアップ用ズーム位置計算 (800%)
+            pImg.style.left = `${50 - t.x * 8}%`;
+            pImg.style.top = `${50 - t.y * 8}%`;
             
             foundPopup.classList.add('active');
             setTimeout(() => {
