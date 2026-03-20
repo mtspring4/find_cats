@@ -60,17 +60,12 @@
             background-color: #fef3c7;
             flex-shrink: 0;
             position: relative;
-            /* 背景画像として表示するための設定 */
             background-repeat: no-repeat;
         }
         .target-preview-large {
             width: 80px;
             height: 80px;
             border-width: 4px;
-        }
-        .crop-img-placeholder {
-            width: 100%;
-            height: 100%;
         }
 
         .target-preview.found {
@@ -311,15 +306,22 @@
         }
 
         /**
-         * 修正版：background-image を使用した最も確実な切り抜き
-         * zoom: 拡大率, x/y: 中心座標パーセント
+         * 修正版：座標が「枠の真ん中」に来るように background-position を計算
+         * 通常の % 指定だと「画像の地点 %」を「枠の地点 %」に合わせるため中心がズレる
+         * 計算式: (x / 100 * 画像幅 - 枠幅 / 2) / (画像幅 - 枠幅) * 100
+         * CSS の background-position % の仕組みを逆算して補正
          */
         function applyCropStyle(el, path, x, y, zoom) {
             el.style.backgroundImage = `url('${path}')`;
-            // background-size: (zoom * 100)% なら、その倍率で画像が表示される
             el.style.backgroundSize = `${zoom * 100}% auto`;
-            // background-position: 指定したパーセントの位置を要素の中心に合わせる
-            el.style.backgroundPosition = `${x}% ${y}%`;
+            
+            // 補正計算: ズーム倍率を Z とすると
+            // 画像上の座標 x% を中央に持ってくるための background-position P% は
+            // P = (x * Z - 50) / (Z - 1)
+            const pX = (x * zoom - 50) / (zoom - 1);
+            const pY = (y * zoom - 50) / (zoom - 1);
+            
+            el.style.backgroundPosition = `${pX}% ${pY}%`;
         }
 
         function createCropElement(path, x, y, zoom, isLarge = false) {
@@ -467,7 +469,7 @@
             document.getElementById('found-text').textContent = t.text;
             const container = document.getElementById('popup-circle-container');
             
-            // ポップアップの円形表示も背景画像方式に統一
+            // ズーム10倍で座標を中心に合わせる
             applyCropStyle(container, currentImage, t.x, t.y, 10);
             
             foundPopup.classList.add('active');
