@@ -169,6 +169,11 @@
 </head>
 <body>
 
+    <!-- ★座標確認用ラベル（iPadなどの画面で確認するため） -->
+    <div id="debug-coords" style="position:fixed; top:80px; left:10px; background:rgba(0,0,0,0.7); color:white; padding:5px 10px; border-radius:5px; z-index:9999; font-family:monospace; pointer-events:none;">
+        Tap to get X, Y
+    </div>
+
     <!-- ステージ選択画面 -->
     <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-[#fffbeb] z-[500] p-4 text-center overflow-y-auto">
         <div class="max-w-2xl w-full pt-12 pb-12">
@@ -177,11 +182,11 @@
             
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="stage-menu">
                 <!-- ステージ 1 -->
-                <button onclick="startGame('img/01.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
+                <button onclick="startGame('https://images.unsplash.com/photo-1574158622682-e40e69881006?q=80&w=800&auto=format&fit=crop')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
-                        <img src="img/01.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                        <img src="https://images.unsplash.com/photo-1574158622682-e40e69881006?q=80&w=400&auto=format&fit=crop" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">あたたかな村</span>
+                    <span class="block font-black text-amber-800 text-sm truncate px-1">テスト用画像1</span>
                 </button>
 
                 <!-- ステージ 2 -->
@@ -250,7 +255,7 @@
         <div class="viewport" id="viewport">
             <div id="panning-layer">
                 <div id="stage-container">
-                    <img id="stage-image" src="" alt="Game Map" draggable="false">
+                    <img id="stage-image" src="" alt="Game Map" draggable="false" crossorigin="anonymous">
                     <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
                 </div>
             </div>
@@ -275,9 +280,17 @@
                 event.preventDefault();
             }
             lastTouchEnd = now;
-        }, false);
+        }, { passive: false });
 
+        // ★ここにあるX, Yの数値を、画面に出た数値に書き換えればOKです
         const stageData = {
+            'https://images.unsplash.com/photo-1574158622682-e40e69881006?q=80&w=800&auto=format&fit=crop': [
+                { x: 43.5, y: 78.0, text: "テストターゲット1" },
+                { x: 19.5, y: 21.5, text: "テストターゲット2" },
+                { x: 68.5, y: 61.5, text: "テストターゲット3" },
+                { x: 70.0, y: 32.5, text: "テストターゲット4" },
+                { x: 45.5, y: 9.5, text: "テストターゲット5" }
+            ],
             'img/01.PNG': [
                 { x: 43.5, y: 78.0, text: "コックさんのネコ" },
                 { x: 19.5, y: 21.5, text: "バルコニーのネコ" },
@@ -342,6 +355,11 @@
             document.getElementById('found-count').textContent = '0';
             document.getElementById('marker-layer').innerHTML = '';
             
+            // ターゲットデータが存在しない場合は空の配列を作成（エラー回避）
+            if(!stageData[path]) {
+                 stageData[path] = [];
+            }
+
             img.onload = () => {
                 initGameLayout();
                 createTargets(path);
@@ -456,13 +474,26 @@
                 updateCSS();
             });
 
+            // ★ ここを書き換えました！
             mc.on("tap", (ev) => {
                 if (!isGameStarted || isPopupActive) return; 
                 const rect = img.getBoundingClientRect(); 
                 if (ev.center.x >= rect.left && ev.center.x <= rect.right &&
                     ev.center.y >= rect.top && ev.center.y <= rect.bottom) {
+                    
                     const xPct = ((ev.center.x - rect.left) / rect.width) * 100;
                     const yPct = ((ev.center.y - rect.top) / rect.height) * 100;
+
+                    // 1. 画面上のラベルに座標を表示
+                    const debugLabel = document.getElementById('debug-coords');
+                    if (debugLabel) {
+                        debugLabel.textContent = `X: ${xPct.toFixed(1)}, Y: ${yPct.toFixed(1)}`;
+                    }
+
+                    // 2. コンソールにも一応出しておく
+                    console.log(`x: ${xPct.toFixed(1)}, y: ${yPct.toFixed(1)}`);
+
+                    // 当たり判定チェック（※座標だけ調べたい時はこの1行をコメントアウトすると邪魔されません）
                     checkHit(xPct, yPct);
                 }
             });
@@ -483,10 +514,6 @@
             } else {
                 transform.y = Math.max(Math.min(0, transform.y), vh - curH);
             }
-        }
-
-        function updateCSS() {
-            panLayer.style.transform = `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`;
         }
 
         function checkHit(x, y) {
