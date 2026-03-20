@@ -36,15 +36,17 @@
             position: absolute;
             transform-origin: 0 0;
             will-change: transform;
-            /* 縁（パディング）を視覚化するための背景色 */
             background-color: #262626;
+        }
+        #stage-container {
+            position: relative;
+            display: inline-block;
         }
         #stage-image {
             display: block;
             user-select: none;
             -webkit-user-drag: none;
             max-width: none;
-            /* 画像の周りに境界線を表示 */
             outline: 2px solid rgba(251, 191, 36, 0.3);
         }
         /* ターゲットプレビュー */
@@ -125,9 +127,9 @@
 
         .marker {
             position: absolute;
-            width: 80px;
-            height: 80px;
-            border: 6px solid #ef4444;
+            width: 60px;
+            height: 60px;
+            border: 5px solid #ef4444;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
@@ -175,13 +177,16 @@
 
         <div class="viewport" id="viewport">
             <div id="panning-layer">
-                <img id="stage-image" src="" alt="Find Map" draggable="false">
-                <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
+                <!-- コンテナの中に画像とマーカーを同梱し、縁の干渉を防ぐ -->
+                <div id="stage-container">
+                    <img id="stage-image" src="" alt="Find Map" draggable="false">
+                    <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- 発見ポップアップ -->
+    <!-- ポップアップ -->
     <div id="found-popup">
         <div class="popup-circle"><img id="popup-img" src=""></div>
         <div class="text-center">
@@ -215,10 +220,11 @@
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0;
         let baseHeight = 0;
-        const CROP_ZOOM = 1; // お題のズーム倍率を1倍に設定
+        const CROP_ZOOM = 0.5; // お題のズーム倍率を0.5倍に設定
         const SAFE_MARGIN = 40; // 画像の周囲に設ける余白（縁）
 
         const panLayer = document.getElementById('panning-layer');
+        const stageContainer = document.getElementById('stage-container');
         const view = document.getElementById('viewport');
         const img = document.getElementById('stage-image');
         const foundPopup = document.getElementById('found-popup');
@@ -242,7 +248,6 @@
             const vh = view.clientHeight;
             const vw = view.clientWidth;
             
-            // ビューポートに対して、マージンを除いた有効な高さを計算
             const availableHeight = vh - (SAFE_MARGIN * 2);
             const ratio = img.naturalWidth / img.naturalHeight;
             
@@ -252,13 +257,14 @@
             img.style.height = baseHeight + 'px';
             img.style.width = baseWidth + 'px';
             
-            // Panning Layer にパディングを設定して縁を作る
+            // 縁を親要素のパディングとして設定
             panLayer.style.padding = `${SAFE_MARGIN}px`;
             
             transform.scale = 1;
             
-            // 初期位置: 中央寄せ（マージンも考慮）
-            transform.x = (vw - (baseWidth + SAFE_MARGIN * 2)) / 2;
+            // 全体の幅（画像＋縁×2）を考慮して中央寄せ
+            const totalInitialWidth = baseWidth + (SAFE_MARGIN * 2);
+            transform.x = (vw - totalInitialWidth) / 2;
             transform.y = 0;
             
             updateCSS();
@@ -277,6 +283,8 @@
                 cImg.className = 'crop-img';
                 cImg.src = path;
                 cImg.style.objectPosition = `${t.x}% ${t.y}%`;
+                // object-fit: noneを使用しているため、
+                // scale(0.5)で画像内のサイズを半分にする
                 cImg.style.transform = `scale(${CROP_ZOOM})`;
                 
                 div.appendChild(cImg);
@@ -313,9 +321,8 @@
 
             mc.on("tap", (ev) => {
                 if (isPopupActive) return;
-                const rect = img.getBoundingClientRect(); // 画像の正確な位置を取得
+                const rect = img.getBoundingClientRect(); 
                 
-                // 画像エリア内をタップしたか判定
                 if (ev.center.x >= rect.left && ev.center.x <= rect.right &&
                     ev.center.y >= rect.top && ev.center.y <= rect.bottom) {
                     
@@ -330,18 +337,16 @@
             const vw = view.clientWidth;
             const vh = view.clientHeight;
             
-            // パディング（縁）を含めた現在のサイズ
+            // 縁（SAFE_MARGIN）を含めたスケーリング後のサイズ
             const curW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
             const curH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
 
-            // X方向の移動制限
             if (curW <= vw) {
                 transform.x = (vw - curW) / 2;
             } else {
                 transform.x = Math.max(Math.min(0, transform.x), vw - curW);
             }
 
-            // Y方向の移動制限
             if (curH <= vh) {
                 transform.y = (vh - curH) / 2;
             } else {
@@ -373,6 +378,8 @@
             m.className = 'marker';
             m.style.left = x + '%';
             m.style.top = y + '%';
+            // 画像そのものと同じサイズのコンテナ(stage-container)に追加するので
+            // 座標のズレが発生しなくなります
             document.getElementById('marker-layer').appendChild(m);
         }
 
@@ -390,7 +397,7 @@
                 if(foundIndices.size === 5) {
                     setTimeout(() => {
                         const finalClear = document.createElement('div');
-                        finalClear.className = "fixed inset-0 bg-white/95 z-[2000] flex flex-col items-center justify-center p-10 text-center";
+                        finalClear.className = "fixed inset-0 bg-white/95 z-[2000] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500";
                         finalClear.innerHTML = `
                             <div class="text-9xl mb-6">🎉</div>
                             <h2 class="text-5xl font-black text-amber-600 mb-4 italic">STAGE CLEAR!</h2>
