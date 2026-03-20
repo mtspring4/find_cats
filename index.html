@@ -36,7 +36,6 @@
             position: absolute;
             transform-origin: 0 0;
             will-change: transform;
-            background-color: #262626;
         }
         #stage-container {
             position: relative;
@@ -47,33 +46,44 @@
             user-select: none;
             -webkit-user-drag: none;
             max-width: none;
-            outline: 2px solid rgba(251, 191, 36, 0.3);
         }
 
-        /* ターゲットプレビュー（共通スタイル） */
+        /* ターゲットプレビュー共通 */
         .target-preview {
             width: 48px;
             height: 48px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
-            background-color: #333;
+            background-color: #eee;
             flex-shrink: 0;
             position: relative;
         }
-        /* 開始ポップアップ用の少し大きいサイズ */
         .target-preview-large {
             width: 64px;
             height: 64px;
             border-width: 4px;
         }
 
+        /* 切り抜き画像のコンテナ */
+        .crop-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            transform: translate(-50%, -50%);
+        }
         .crop-img {
             position: absolute;
-            width: 500%; 
-            height: 500%;
-            object-fit: cover;
+            /* ズーム倍率。お題は8倍 */
+            width: 800%;
+            height: 800%;
+            max-width: none;
+            object-fit: contain;
+            /* JSで top/left を調整 */
         }
+
         .target-preview.found {
             border-color: #10b981;
             opacity: 0.3;
@@ -91,11 +101,11 @@
             z-index: 10;
         }
 
-        /* ポップアップ共通スタイル */
+        /* モーダル共通 */
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.8);
             backdrop-filter: blur(4px);
             z-index: 2000;
             display: flex;
@@ -103,7 +113,6 @@
             justify-content: center;
             padding: 20px;
         }
-
         .modal-content {
             background: white;
             border-radius: 40px;
@@ -115,17 +124,17 @@
             box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
-        /* 発見ポップアップ（画面中央に出る小さい方） */
+        /* 発見ポップアップ（⭕️が大きい） */
         #found-popup {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0.5);
             background: white;
-            padding: 20px;
+            padding: 24px;
             border-radius: 40px;
             box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-            z-index: 1000;
+            z-index: 2500;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -134,7 +143,7 @@
             visibility: hidden;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             border: 8px solid #fbbf24;
-            min-width: 260px;
+            min-width: 280px;
         }
         #found-popup.active {
             opacity: 1;
@@ -142,19 +151,18 @@
             transform: translate(-50%, -50%) scale(1);
         }
         .popup-circle {
-            width: 140px;
-            height: 140px;
+            width: 150px;
+            height: 150px;
             border-radius: 50%;
             overflow: hidden;
-            border: 5px solid #fbbf24;
-            background: #fff;
+            border: 6px solid #fbbf24;
+            background: #eee;
             position: relative;
         }
-        .popup-circle img {
-            position: absolute;
-            width: 800%; 
-            height: 800%;
-            object-fit: cover;
+        .popup-circle .crop-img {
+            /* ポップアップはさらにズーム！ 12倍 */
+            width: 1200%;
+            height: 1200%;
         }
 
         .marker {
@@ -166,15 +174,14 @@
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 10;
-            background: rgba(239, 68, 68, 0.1);
+            background: rgba(239, 68, 68, 0.2);
         }
-
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body>
 
-    <!-- ステージ選択画面 -->
+    <!-- ステージ選択 -->
     <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-amber-50 z-[100] p-4 text-center overflow-y-auto">
         <div class="max-w-2xl w-full pt-8 pb-12">
             <h1 class="text-4xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
@@ -182,36 +189,33 @@
             
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="stage-menu">
                 <button onclick="startGame('img/01.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
-                    <div class="aspect-square rounded-xl overflow-hidden mb-2">
-                        <img src="img/01.PNG" class="w-full h-full object-cover object-center scale-150">
+                    <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
+                        <img src="img/01.PNG" class="absolute w-[200%] h-[200%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
                     </div>
                     <span class="block font-black text-amber-700 text-sm truncate">ねこの田舎町</span>
                 </button>
 
                 <button onclick="startGame('img/02.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
-                    <div class="aspect-square rounded-xl overflow-hidden mb-2">
-                        <img src="img/02.PNG" class="w-full h-full object-cover object-center scale-150">
+                    <div class="aspect-square rounded-xl overflow-hidden mb-2 relative">
+                        <img src="img/02.PNG" class="absolute w-[200%] h-[200%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover">
                     </div>
                     <span class="block font-black text-amber-700 text-sm truncate">ニャンコパーク</span>
                 </button>
             </div>
-            
             <p class="mt-8 text-xs text-gray-400 font-bold">🐾 ピンチで拡大 / スワイプで移動 🐾</p>
         </div>
     </div>
 
-    <!-- 開始時ポップアップ -->
+    <!-- 開始ポップアップ -->
     <div id="start-mission-popup" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-3xl font-black text-amber-600 mb-6">さがしてね！</h2>
-            <div id="mission-targets" class="flex flex-wrap justify-center gap-2 mb-8">
-                <!-- ここにお題画像が入る -->
-            </div>
+            <h2 class="text-3xl font-black text-amber-600 mb-6 italic">さがしてね！</h2>
+            <div id="mission-targets" class="flex flex-wrap justify-center gap-3 mb-8"></div>
             <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">OK！</button>
         </div>
     </div>
 
-    <!-- ゲームメイン画面 -->
+    <!-- ゲーム画面 -->
     <div id="game-screen" class="hidden game-screen-layout">
         <div class="header-panel flex items-center justify-between gap-2">
             <button onclick="location.reload()" class="bg-gray-100 px-3 py-2 rounded-xl text-xs font-black text-gray-500 shrink-0">◀ メニュー</button>
@@ -233,7 +237,9 @@
 
     <!-- 発見ポップアップ -->
     <div id="found-popup">
-        <div class="popup-circle"><img id="popup-img" src=""></div>
+        <div class="popup-circle">
+            <img id="popup-img" class="crop-img" src="">
+        </div>
         <div class="text-center">
             <p id="found-text" class="text-lg font-black text-gray-800 leading-tight"></p>
             <p class="text-amber-500 font-black text-xl mt-1 italic animate-bounce">はっけん！🔍</p>
@@ -262,8 +268,7 @@
         let foundIndices = new Set();
         let isPopupActive = false;
         let transform = { x: 0, y: 0, scale: 1 };
-        let baseWidth = 0;
-        let baseHeight = 0;
+        let baseWidth = 0, baseHeight = 0;
         const SAFE_MARGIN = 40; 
 
         const panLayer = document.getElementById('panning-layer');
@@ -293,14 +298,7 @@
             const targets = stageData[currentImage];
             
             targets.forEach((t) => {
-                const div = document.createElement('div');
-                div.className = 'target-preview target-preview-large';
-                const cImg = document.createElement('img');
-                cImg.className = 'crop-img';
-                cImg.src = currentImage;
-                cImg.style.left = `${50 - t.x * 5}%`;
-                cImg.style.top = `${50 - t.y * 5}%`;
-                div.appendChild(cImg);
+                const div = createCropElement(currentImage, t.x, t.y, true);
                 missionContainer.appendChild(div);
             });
 
@@ -311,6 +309,34 @@
         function closeMissionPopup() {
             document.getElementById('start-mission-popup').classList.add('hidden');
             isPopupActive = false;
+        }
+
+        function createCropElement(path, x, y, isLarge = false) {
+            const div = document.createElement('div');
+            div.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
+            
+            const cImg = document.createElement('img');
+            cImg.className = 'crop-img';
+            cImg.src = path;
+            
+            // ズーム位置計算 (8倍ズーム時)
+            // 8倍にしているので、画像の中心をターゲットに向ける
+            cImg.style.left = `${50 - x * 8}%`;
+            cImg.style.top = `${50 - y * 8}%`;
+            
+            div.appendChild(cImg);
+            return div;
+        }
+
+        function createTargets(path) {
+            const container = document.getElementById('target-container');
+            container.innerHTML = '';
+            const targets = stageData[path];
+            targets.forEach((t, i) => {
+                const div = createCropElement(path, t.x, t.y);
+                div.id = `preview-${i}`;
+                container.appendChild(div);
+            });
         }
 
         function initGameLayout() {
@@ -333,26 +359,6 @@
             transform.y = 0;
             
             updateCSS();
-        }
-
-        function createTargets(path) {
-            const container = document.getElementById('target-container');
-            container.innerHTML = '';
-            const targets = stageData[path];
-            targets.forEach((t, i) => {
-                const div = document.createElement('div');
-                div.className = 'target-preview';
-                div.id = `preview-${i}`;
-                
-                const cImg = document.createElement('img');
-                cImg.className = 'crop-img';
-                cImg.src = path;
-                cImg.style.left = `${50 - t.x * 5}%`;
-                cImg.style.top = `${50 - t.y * 5}%`;
-                
-                div.appendChild(cImg);
-                container.appendChild(div);
-            });
         }
 
         function setupInteractions() {
@@ -441,8 +447,10 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             const pImg = document.getElementById('popup-img');
-            pImg.style.left = `${50 - t.x * 8}%`;
-            pImg.style.top = `${50 - t.y * 8}%`;
+            
+            // ポップアップ用ズーム (12倍ズーム時)
+            pImg.style.left = `${50 - t.x * 12}%`;
+            pImg.style.top = `${50 - t.y * 12}%`;
             
             foundPopup.classList.add('active');
             setTimeout(() => {
