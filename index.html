@@ -9,7 +9,7 @@
     <style>
         body {
             background-color: #fffbeb;
-            touch-action: none; /* ブラウザ標準のズームやパンを完全に無効化 */
+            touch-action: none;
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
             margin: 0;
             overflow: hidden;
@@ -60,24 +60,17 @@
             background-color: #fef3c7;
             flex-shrink: 0;
             position: relative;
+            /* 背景画像として表示するための設定 */
+            background-repeat: no-repeat;
         }
         .target-preview-large {
             width: 80px;
             height: 80px;
             border-width: 4px;
         }
-        .crop-img-container {
+        .crop-img-placeholder {
             width: 100%;
             height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .crop-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover; 
-            max-width: none;
         }
 
         .target-preview.found {
@@ -154,6 +147,7 @@
             border: 6px solid #fbbf24;
             background: #fef3c7;
             position: relative;
+            background-repeat: no-repeat;
         }
 
         .marker {
@@ -270,7 +264,7 @@
         let currentImage = "";
         let foundIndices = new Set();
         let isPopupActive = false;
-        let isGameStarted = false; // ゲーム中かどうかを追跡
+        let isGameStarted = false;
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0, baseHeight = 0;
         const SAFE_MARGIN = 20; 
@@ -292,7 +286,7 @@
                 createTargets(path);
                 setupInteractions();
                 showMissionPopup();
-                isGameStarted = true; // ゲーム開始フラグ
+                isGameStarted = true;
             };
 
             document.getElementById('start-screen').classList.add('hidden');
@@ -316,24 +310,23 @@
             isPopupActive = false;
         }
 
+        /**
+         * 修正版：background-image を使用した最も確実な切り抜き
+         * zoom: 拡大率, x/y: 中心座標パーセント
+         */
+        function applyCropStyle(el, path, x, y, zoom) {
+            el.style.backgroundImage = `url('${path}')`;
+            // background-size: (zoom * 100)% なら、その倍率で画像が表示される
+            el.style.backgroundSize = `${zoom * 100}% auto`;
+            // background-position: 指定したパーセントの位置を要素の中心に合わせる
+            el.style.backgroundPosition = `${x}% ${y}%`;
+        }
+
         function createCropElement(path, x, y, zoom, isLarge = false) {
-            const wrapper = document.createElement('div');
-            wrapper.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
-            
-            const container = document.createElement('div');
-            container.className = 'crop-img-container';
-            
-            const cImg = document.createElement('img');
-            cImg.className = 'crop-img';
-            cImg.src = path;
-            
-            cImg.style.transform = `scale(${zoom})`;
-            cImg.style.transformOrigin = 'center';
-            cImg.style.objectPosition = `${x}% ${y}%`;
-            
-            container.appendChild(cImg);
-            wrapper.appendChild(container);
-            return wrapper;
+            const el = document.createElement('div');
+            el.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
+            applyCropStyle(el, path, x, y, zoom);
+            return el;
         }
 
         function createTargets(path) {
@@ -371,7 +364,7 @@
 
         let mc = null;
         function setupInteractions() {
-            if (mc) return; // 二重登録防止
+            if (mc) return; 
 
             mc = new Hammer.Manager(view);
             mc.add(new Hammer.Pan({ threshold: 0, pointers: 0 }));
@@ -382,7 +375,7 @@
             let centerPoint = { x: 0, y: 0 };
 
             mc.on("panstart pinchstart", (ev) => {
-                if (!isGameStarted) return; // タイトル画面では無効化
+                if (!isGameStarted) return;
 
                 startX = transform.x;
                 startY = transform.y;
@@ -396,7 +389,7 @@
             });
 
             mc.on("panmove pinchmove", (ev) => {
-                if (!isGameStarted || isPopupActive) return; // タイトル画面やポップアップ中は無効化
+                if (!isGameStarted || isPopupActive) return;
 
                 let newScale = startScale * (ev.scale || 1);
                 newScale = Math.max(1, Math.min(newScale, 5));
@@ -473,9 +466,10 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             const container = document.getElementById('popup-circle-container');
-            container.innerHTML = '';
-            const cropEl = createCropElement(currentImage, t.x, t.y, 10, true);
-            container.appendChild(cropEl);
+            
+            // ポップアップの円形表示も背景画像方式に統一
+            applyCropStyle(container, currentImage, t.x, t.y, 10);
+            
             foundPopup.classList.add('active');
             
             setTimeout(() => {
@@ -489,7 +483,7 @@
 
         function showClearScreen() {
             setTimeout(() => {
-                isGameStarted = false; // クリアしたので操作停止
+                isGameStarted = false;
                 const finalClear = document.createElement('div');
                 finalClear.className = "fixed inset-0 bg-[#fffbeb]/95 z-[3000] flex flex-col items-center justify-center p-10 text-center";
                 finalClear.innerHTML = `
