@@ -293,7 +293,7 @@
             missionContainer.innerHTML = '';
             const targets = stageData[currentImage];
             targets.forEach((t) => {
-                const el = createCropElement(currentImage, t.x, t.y, 9, true);
+                const el = createCropElement(currentImage, t.x, t.y, 20, true);
                 missionContainer.appendChild(el);
             });
             document.getElementById('start-mission-popup').classList.remove('hidden');
