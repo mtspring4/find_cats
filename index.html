@@ -50,7 +50,7 @@
             outline: 2px solid rgba(251, 191, 36, 0.3);
         }
 
-        /* ターゲットプレビュー */
+        /* ターゲットプレビュー（共通スタイル） */
         .target-preview {
             width: 48px;
             height: 48px;
@@ -61,12 +61,18 @@
             flex-shrink: 0;
             position: relative;
         }
+        /* 開始ポップアップ用の少し大きいサイズ */
+        .target-preview-large {
+            width: 64px;
+            height: 64px;
+            border-width: 4px;
+        }
+
         .crop-img {
             position: absolute;
-            width: 500%; /* 親の5倍のサイズにしてズーム効果 */
+            width: 500%; 
             height: 500%;
             object-fit: cover;
-            /* JSで top/left/object-position を制御 */
         }
         .target-preview.found {
             border-color: #10b981;
@@ -85,7 +91,31 @@
             z-index: 10;
         }
 
-        /* ポップアップ */
+        /* ポップアップ共通スタイル */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 40px;
+            border: 8px solid #fbbf24;
+            width: 100%;
+            max-width: 320px;
+            padding: 24px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* 発見ポップアップ（画面中央に出る小さい方） */
         #found-popup {
             position: fixed;
             top: 50%;
@@ -122,7 +152,7 @@
         }
         .popup-circle img {
             position: absolute;
-            width: 800%; /* さらに大きくズーム */
+            width: 800%; 
             height: 800%;
             object-fit: cover;
         }
@@ -150,9 +180,7 @@
             <h1 class="text-4xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
             <p class="text-gray-500 mb-8 font-bold">ステージをえらんでね</p>
             
-            <!-- グリッドを小さくして多ステージに対応 -->
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="stage-menu">
-                <!-- img/01.PNG -->
                 <button onclick="startGame('img/01.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
                     <div class="aspect-square rounded-xl overflow-hidden mb-2">
                         <img src="img/01.PNG" class="w-full h-full object-cover object-center scale-150">
@@ -160,7 +188,6 @@
                     <span class="block font-black text-amber-700 text-sm truncate">ねこの田舎町</span>
                 </button>
 
-                <!-- img/02.PNG -->
                 <button onclick="startGame('img/02.PNG')" class="bg-white rounded-2xl border-2 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95">
                     <div class="aspect-square rounded-xl overflow-hidden mb-2">
                         <img src="img/02.PNG" class="w-full h-full object-cover object-center scale-150">
@@ -170,6 +197,17 @@
             </div>
             
             <p class="mt-8 text-xs text-gray-400 font-bold">🐾 ピンチで拡大 / スワイプで移動 🐾</p>
+        </div>
+    </div>
+
+    <!-- 開始時ポップアップ -->
+    <div id="start-mission-popup" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h2 class="text-3xl font-black text-amber-600 mb-6">さがしてね！</h2>
+            <div id="mission-targets" class="flex flex-wrap justify-center gap-2 mb-8">
+                <!-- ここにお題画像が入る -->
+            </div>
+            <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-xl py-4 rounded-2xl shadow-lg active:scale-95 transition-transform">OK！</button>
         </div>
     </div>
 
@@ -242,10 +280,37 @@
                 initGameLayout();
                 createTargets(path);
                 setupInteractions();
+                showMissionPopup();
             };
 
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
+        }
+
+        function showMissionPopup() {
+            const missionContainer = document.getElementById('mission-targets');
+            missionContainer.innerHTML = '';
+            const targets = stageData[currentImage];
+            
+            targets.forEach((t) => {
+                const div = document.createElement('div');
+                div.className = 'target-preview target-preview-large';
+                const cImg = document.createElement('img');
+                cImg.className = 'crop-img';
+                cImg.src = currentImage;
+                cImg.style.left = `${50 - t.x * 5}%`;
+                cImg.style.top = `${50 - t.y * 5}%`;
+                div.appendChild(cImg);
+                missionContainer.appendChild(div);
+            });
+
+            document.getElementById('start-mission-popup').classList.remove('hidden');
+            isPopupActive = true;
+        }
+
+        function closeMissionPopup() {
+            document.getElementById('start-mission-popup').classList.add('hidden');
+            isPopupActive = false;
         }
 
         function initGameLayout() {
@@ -282,9 +347,6 @@
                 const cImg = document.createElement('img');
                 cImg.className = 'crop-img';
                 cImg.src = path;
-                
-                // 画像が黒くならないよう、中央からの位置を計算
-                // 500%サイズなので、画像の中央は250%地点。そこからターゲット座標分ずらす。
                 cImg.style.left = `${50 - t.x * 5}%`;
                 cImg.style.top = `${50 - t.y * 5}%`;
                 
@@ -379,8 +441,6 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             const pImg = document.getElementById('popup-img');
-            
-            // ポップアップ用ズーム位置計算 (800%)
             pImg.style.left = `${50 - t.x * 8}%`;
             pImg.style.top = `${50 - t.y * 8}%`;
             
@@ -391,7 +451,7 @@
                 if(foundIndices.size === 5) {
                     setTimeout(() => {
                         const finalClear = document.createElement('div');
-                        finalClear.className = "fixed inset-0 bg-white/95 z-[2000] flex flex-col items-center justify-center p-10 text-center";
+                        finalClear.className = "fixed inset-0 bg-white/95 z-[3000] flex flex-col items-center justify-center p-10 text-center";
                         finalClear.innerHTML = `
                             <div class="text-9xl mb-6">🎉</div>
                             <h2 class="text-5xl font-black text-amber-600 mb-4 italic">STAGE CLEAR!</h2>
