@@ -9,7 +9,7 @@
     <style>
         body {
             background-color: #fffbeb;
-            touch-action: none;
+            touch-action: none; /* ブラウザ標準のズームやパンを完全に無効化 */
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
             margin: 0;
             overflow: hidden;
@@ -67,18 +67,17 @@
             border-width: 4px;
         }
         .crop-img-container {
-            position: absolute;
-            top: 0;
-            left: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .crop-img {
-            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
             max-width: none;
-            /* 縦横比を維持するために height は auto に固定 */
-            height: auto !important; 
         }
 
         .target-preview.found {
@@ -271,6 +270,7 @@
         let currentImage = "";
         let foundIndices = new Set();
         let isPopupActive = false;
+        let isGameStarted = false; // ゲーム中かどうかを追跡
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0, baseHeight = 0;
         const SAFE_MARGIN = 20; 
@@ -292,6 +292,7 @@
                 createTargets(path);
                 setupInteractions();
                 showMissionPopup();
+                isGameStarted = true; // ゲーム開始フラグ
             };
 
             document.getElementById('start-screen').classList.add('hidden');
@@ -315,7 +316,6 @@
             isPopupActive = false;
         }
 
-        // 比率を修正した切り抜き要素生成
         function createCropElement(path, x, y, zoom, isLarge = false) {
             const wrapper = document.createElement('div');
             wrapper.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
@@ -327,18 +327,9 @@
             cImg.className = 'crop-img';
             cImg.src = path;
             
-            // 重要: 画像の読み込み完了後に正しい比率で位置を調整
-            cImg.onload = () => {
-                const ratio = cImg.naturalWidth / cImg.naturalHeight;
-                // 幅を指定したズーム倍率に設定し、高さは自動計算に任せる
-                cImg.style.width = (zoom * 100) + '%';
-                
-                // 左位置: 50%を起点に x * zoom 分ずらす
-                cImg.style.left = (50 - x * zoom) + '%';
-                // 上位置: 50%を起点に y * zoom * (縦横比) 分ずらす
-                // 画像が横長の場合、縦方向の移動量は比率で補正する必要がある
-                cImg.style.top = (50 - (y * zoom * ratio)) + '%';
-            };
+            cImg.style.transform = `scale(${zoom})`;
+            cImg.style.transformOrigin = 'center';
+            cImg.style.objectPosition = `${x}% ${y}%`;
             
             container.appendChild(cImg);
             wrapper.appendChild(container);
@@ -378,8 +369,11 @@
             updateCSS();
         }
 
+        let mc = null;
         function setupInteractions() {
-            const mc = new Hammer.Manager(view);
+            if (mc) return; // 二重登録防止
+
+            mc = new Hammer.Manager(view);
             mc.add(new Hammer.Pan({ threshold: 0, pointers: 0 }));
             mc.add(new Hammer.Pinch({ threshold: 0 })).recognizeWith(mc.get('pan'));
             mc.add(new Hammer.Tap());
@@ -388,6 +382,8 @@
             let centerPoint = { x: 0, y: 0 };
 
             mc.on("panstart pinchstart", (ev) => {
+                if (!isGameStarted) return; // タイトル画面では無効化
+
                 startX = transform.x;
                 startY = transform.y;
                 startScale = transform.scale;
@@ -400,7 +396,7 @@
             });
 
             mc.on("panmove pinchmove", (ev) => {
-                if (isPopupActive) return;
+                if (!isGameStarted || isPopupActive) return; // タイトル画面やポップアップ中は無効化
 
                 let newScale = startScale * (ev.scale || 1);
                 newScale = Math.max(1, Math.min(newScale, 5));
@@ -415,7 +411,8 @@
             });
 
             mc.on("tap", (ev) => {
-                if (isPopupActive) return;
+                if (!isGameStarted || isPopupActive) return; 
+                
                 const rect = img.getBoundingClientRect(); 
                 if (ev.center.x >= rect.left && ev.center.x <= rect.right &&
                     ev.center.y >= rect.top && ev.center.y <= rect.bottom) {
@@ -477,9 +474,8 @@
             document.getElementById('found-text').textContent = t.text;
             const container = document.getElementById('popup-circle-container');
             container.innerHTML = '';
-            // 正解ポップアップは10倍ズーム
             const cropEl = createCropElement(currentImage, t.x, t.y, 10, true);
-            container.appendChild(cropEl.firstChild);
+            container.appendChild(cropEl);
             foundPopup.classList.add('active');
             
             setTimeout(() => {
@@ -493,6 +489,7 @@
 
         function showClearScreen() {
             setTimeout(() => {
+                isGameStarted = false; // クリアしたので操作停止
                 const finalClear = document.createElement('div');
                 finalClear.className = "fixed inset-0 bg-[#fffbeb]/95 z-[3000] flex flex-col items-center justify-center p-10 text-center";
                 finalClear.innerHTML = `
