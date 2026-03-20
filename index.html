@@ -36,12 +36,16 @@
             position: absolute;
             transform-origin: 0 0;
             will-change: transform;
+            /* 縁（パディング）を視覚化するための背景色 */
+            background-color: #262626;
         }
         #stage-image {
             display: block;
             user-select: none;
             -webkit-user-drag: none;
-            max-width: none; /* Tailwindの制限を解除 */
+            max-width: none;
+            /* 画像の周りに境界線を表示 */
+            outline: 2px solid rgba(251, 191, 36, 0.3);
         }
         /* ターゲットプレビュー */
         .target-preview {
@@ -177,7 +181,7 @@
         </div>
     </div>
 
-    <!-- ポップアップ -->
+    <!-- 発見ポップアップ -->
     <div id="found-popup">
         <div class="popup-circle"><img id="popup-img" src=""></div>
         <div class="text-center">
@@ -211,7 +215,8 @@
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0;
         let baseHeight = 0;
-        const CROP_ZOOM = 3; // お題のズーム倍率を下げて周りを見えやすく
+        const CROP_ZOOM = 1; // お題のズーム倍率を1倍に設定
+        const SAFE_MARGIN = 40; // 画像の周囲に設ける余白（縁）
 
         const panLayer = document.getElementById('panning-layer');
         const view = document.getElementById('viewport');
@@ -236,21 +241,24 @@
         function initGameLayout() {
             const vh = view.clientHeight;
             const vw = view.clientWidth;
+            
+            // ビューポートに対して、マージンを除いた有効な高さを計算
+            const availableHeight = vh - (SAFE_MARGIN * 2);
             const ratio = img.naturalWidth / img.naturalHeight;
             
-            baseHeight = vh;
-            baseWidth = vh * ratio;
+            baseHeight = availableHeight;
+            baseWidth = availableHeight * ratio;
             
             img.style.height = baseHeight + 'px';
             img.style.width = baseWidth + 'px';
             
+            // Panning Layer にパディングを設定して縁を作る
+            panLayer.style.padding = `${SAFE_MARGIN}px`;
+            
             transform.scale = 1;
-            // 完全に中央に配置（右側が切れないように）
-            if (baseWidth > vw) {
-                transform.x = (vw - baseWidth) / 2;
-            } else {
-                transform.x = (vw - baseWidth) / 2;
-            }
+            
+            // 初期位置: 中央寄せ（マージンも考慮）
+            transform.x = (vw - (baseWidth + SAFE_MARGIN * 2)) / 2;
             transform.y = 0;
             
             updateCSS();
@@ -305,28 +313,35 @@
 
             mc.on("tap", (ev) => {
                 if (isPopupActive) return;
-                const rect = panLayer.getBoundingClientRect();
-                const xPct = ((ev.center.x - rect.left) / rect.width) * 100;
-                const yPct = ((ev.center.y - rect.top) / rect.height) * 100;
-                checkHit(xPct, yPct);
+                const rect = img.getBoundingClientRect(); // 画像の正確な位置を取得
+                
+                // 画像エリア内をタップしたか判定
+                if (ev.center.x >= rect.left && ev.center.x <= rect.right &&
+                    ev.center.y >= rect.top && ev.center.y <= rect.bottom) {
+                    
+                    const xPct = ((ev.center.x - rect.left) / rect.width) * 100;
+                    const yPct = ((ev.center.y - rect.top) / rect.height) * 100;
+                    checkHit(xPct, yPct);
+                }
             });
         }
 
         function applyBoundaries() {
             const vw = view.clientWidth;
             const vh = view.clientHeight;
-            const curW = baseWidth * transform.scale;
-            const curH = baseHeight * transform.scale;
+            
+            // パディング（縁）を含めた現在のサイズ
+            const curW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
+            const curH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
 
-            // X方向の移動制限: 右端が切れないように vw - curW を厳守
+            // X方向の移動制限
             if (curW <= vw) {
                 transform.x = (vw - curW) / 2;
             } else {
-                // 左端(0)を超えず、右端(vw - curW)より小さくならない
                 transform.x = Math.max(Math.min(0, transform.x), vw - curW);
             }
 
-            // Y方向
+            // Y方向の移動制限
             if (curH <= vh) {
                 transform.y = (vh - curH) / 2;
             } else {
