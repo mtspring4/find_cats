@@ -39,8 +39,6 @@
         }
         #stage-image {
             display: block;
-            height: 100%;
-            width: auto;
             user-select: none;
             -webkit-user-drag: none;
         }
@@ -51,18 +49,16 @@
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
-            position: relative;
             background-color: #333;
             flex-shrink: 0;
+            position: relative;
         }
         .crop-img {
-            position: absolute;
-            width: 800%; /* 8倍ズーム */
-            max-width: none;
-            /* 中央配置のための基準設定 */
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            object-fit: none;
+            /* JSで動的にスケールとポジションを設定 */
+            transform-origin: center;
         }
         .target-preview.found {
             border-color: #10b981;
@@ -78,6 +74,7 @@
             color: white;
             font-weight: bold;
             background: rgba(16, 185, 129, 0.6);
+            z-index: 10;
         }
 
         /* 発見ポップアップ */
@@ -87,18 +84,19 @@
             left: 50%;
             transform: translate(-50%, -50%) scale(0.5);
             background: white;
-            padding: 20px;
-            border-radius: 30px;
+            padding: 24px;
+            border-radius: 40px;
             box-shadow: 0 30px 60px rgba(0,0,0,0.6);
             z-index: 1000;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
             opacity: 0;
             visibility: hidden;
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 6px solid #fbbf24;
+            border: 8px solid #fbbf24;
+            min-width: 260px;
         }
         #found-popup.active {
             opacity: 1;
@@ -106,44 +104,55 @@
             transform: translate(-50%, -50%) scale(1);
         }
         .popup-circle {
-            width: 140px;
-            height: 140px;
+            width: 150px;
+            height: 150px;
             border-radius: 50%;
             overflow: hidden;
-            position: relative;
-            border: 4px solid #fbbf24;
+            border: 5px solid #fbbf24;
             background: #fff;
         }
         .popup-circle img {
-            position: absolute;
-            width: 800%;
-            max-width: none;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            object-fit: none;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        .marker {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            border: 6px solid #ef4444;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+            background: rgba(239, 68, 68, 0.1);
+        }
     </style>
 </head>
 <body>
 
     <!-- スタート画面 -->
     <div id="start-screen" class="fixed inset-0 flex items-center justify-center bg-amber-50 z-[100] p-6 text-center">
-        <div class="max-w-md w-full bg-white p-8 rounded-[2.5rem] shadow-2xl border-4 border-amber-200">
-            <h1 class="text-4xl font-black text-amber-600 mb-2 italic">Find Cats!</h1>
-            <p class="text-gray-500 mb-6 font-bold">5匹のネコをさがしてね</p>
-            <button onclick="startGame('img/01.PNG')" class="w-full rounded-2xl p-4 bg-amber-500 text-white font-bold text-xl shadow-lg hover:bg-amber-600 transition">
+        <div class="max-w-md w-full bg-white p-10 rounded-[3rem] shadow-2xl border-4 border-amber-200">
+            <h1 class="text-5xl font-black text-amber-600 mb-4 italic tracking-tighter">Find Cats!</h1>
+            <p class="text-gray-500 mb-8 font-bold text-lg">隠れた5匹のネコをさがせ！</p>
+            <button onclick="startGame('img/01.PNG')" class="w-full rounded-[2rem] p-5 bg-amber-500 text-white font-black text-2xl shadow-xl hover:bg-amber-600 transition-transform active:scale-95">
                 スタート！
             </button>
+            <p class="mt-6 text-xs text-gray-400 font-bold">ピンチで拡大 🐾 スワイプで移動</p>
         </div>
     </div>
 
     <!-- ゲーム画面 -->
     <div id="game-screen" class="hidden game-screen-layout">
-        <div class="header-panel flex items-center justify-between gap-2">
-            <button onclick="location.reload()" class="bg-gray-100 p-2 rounded-lg text-xs font-bold text-gray-600 shrink-0">◀戻る</button>
-            <div id="target-container" class="flex gap-2 overflow-x-auto no-scrollbar flex-1 justify-center py-1"></div>
-            <div class="text-amber-500 font-black text-lg px-2 shrink-0"><span id="found-count">0</span>/5</div>
+        <div class="header-panel flex items-center justify-between gap-4">
+            <button onclick="location.reload()" class="bg-gray-100 px-4 py-2 rounded-2xl text-sm font-black text-gray-500 shrink-0">◀ 戻る</button>
+            <div id="target-container" class="flex gap-3 overflow-x-auto no-scrollbar flex-1 justify-center py-1"></div>
+            <div class="bg-amber-100 px-4 py-2 rounded-2xl shrink-0">
+                <span id="found-count" class="text-amber-600 font-black text-xl">0</span><span class="text-amber-400 font-black text-xl">/5</span>
+            </div>
         </div>
 
         <div class="viewport" id="viewport">
@@ -156,21 +165,21 @@
 
     <!-- ポップアップ -->
     <div id="found-popup">
-        <div class="popup-circle"><img id="popup-img" src="" class="popup-crop"></div>
+        <div class="popup-circle"><img id="popup-img" src=""></div>
         <div class="text-center">
-            <p id="found-text" class="text-lg font-black text-gray-800"></p>
-            <p class="text-amber-500 font-bold text-xl italic">はっけん！🔍</p>
+            <p id="found-text" class="text-xl font-black text-gray-800 leading-tight"></p>
+            <p class="text-amber-500 font-black text-2xl mt-1 italic animate-bounce">はっけん！🔍</p>
         </div>
     </div>
 
     <script>
         const stageData = {
             'img/01.PNG': [
-                { x: 44.5, y: 5.6, text: "飛行機を操縦するネコ" },
+                { x: 44.5, y: 5.6, text: "青い飛行機を操縦するネコ" },
                 { x: 13.5, y: 35.8, text: "灯台の窓から見るネコ" },
                 { x: 41.1, y: 57.5, text: "リュックで歩くネコ" },
                 { x: 86.4, y: 29.8, text: "ハシゴをのぼるネコ" },
-                { x: 14.5, y: 71.1, text: "農家のネコ" }
+                { x: 14.5, y: 71.1, text: "麦わら帽子の農家ネコ" }
             ]
         };
 
@@ -206,6 +215,7 @@
             const vh = view.clientHeight;
             const vw = view.clientWidth;
             const ratio = img.naturalWidth / img.naturalHeight;
+            
             baseHeight = vh;
             baseWidth = vh * ratio;
             
@@ -219,6 +229,19 @@
             updateCSS();
         }
 
+        function setCropStyle(targetImg, containerSize, targetX, targetY) {
+            // object-fit: none を使い、ポジションを % で指定することで
+            // 判定座標と表示を完全に一致させる
+            const zoom = 6; // 切り抜き内のズーム倍率
+            targetImg.style.width = (img.naturalWidth * (containerSize / (img.naturalWidth / zoom * 100))) + 'px';
+            targetImg.style.height = 'auto'; 
+            
+            // object-position は背景画像のように % 指定が可能
+            // タップ判定で使っている x, y をそのまま適用
+            targetImg.style.objectPosition = `${targetX}% ${targetY}%`;
+            targetImg.style.transform = `scale(${zoom})`;
+        }
+
         function createTargets(path) {
             const container = document.getElementById('target-container');
             const targets = stageData[path];
@@ -226,16 +249,14 @@
                 const div = document.createElement('div');
                 div.className = 'target-preview';
                 div.id = `preview-${i}`;
+                
                 const cImg = document.createElement('img');
                 cImg.className = 'crop-img';
                 cImg.src = path;
                 
-                // 切り抜き座標の計算を修正:
-                // 画像が 800% (8倍) なので、座標 (t.x, t.y) を中央に持ってくるには
-                // margin-left = (50 - t.x) * 8
-                // margin-top = (50 - t.y) * 8
-                cImg.style.marginLeft = (50 - t.x) * 8 + '%'; 
-                cImg.style.marginTop = (50 - t.y) * 8 + '%';
+                // object-position による正確な位置指定
+                cImg.style.objectPosition = `${t.x}% ${t.y}%`;
+                cImg.style.transform = `scale(6)`; // ズーム倍率
                 
                 div.appendChild(cImg);
                 container.appendChild(div);
@@ -260,7 +281,7 @@
                 if (isPopupActive) return;
 
                 let newScale = startScale * (ev.scale || 1);
-                transform.scale = Math.max(1, Math.min(newScale, 2.5)); // 最大ズームを少し上げました
+                transform.scale = Math.max(1, Math.min(newScale, 3));
 
                 transform.x = startX + ev.deltaX;
                 transform.y = startY + ev.deltaY;
@@ -272,6 +293,7 @@
             mc.on("tap", (ev) => {
                 if (isPopupActive) return;
                 const rect = panLayer.getBoundingClientRect();
+                // 画面上の座標を画像内の % 座標に変換
                 const xPct = ((ev.center.x - rect.left) / rect.width) * 100;
                 const yPct = ((ev.center.y - rect.top) / rect.height) * 100;
                 checkHit(xPct, yPct);
@@ -306,7 +328,7 @@
             targets.forEach((target, i) => {
                 if (foundIndices.has(i)) return;
                 const dist = Math.sqrt(Math.pow(x - target.x, 2) + Math.pow(y - target.y, 2));
-                if (dist < 4) { // 当たり判定を少し調整
+                if (dist < 4) { // 判定距離
                     foundIndices.add(i);
                     addMarker(target.x, target.y);
                     document.getElementById(`preview-${i}`).classList.add('found');
@@ -321,7 +343,6 @@
             m.className = 'marker';
             m.style.left = x + '%';
             m.style.top = y + '%';
-            // マーカーもズームに合わせてサイズ調整されるようpanLayer内に追加
             document.getElementById('marker-layer').appendChild(m);
         }
 
@@ -329,17 +350,26 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             const pImg = document.getElementById('popup-img');
-            
-            // ポップアップの切り抜きも同じ計算式で修正
-            pImg.style.marginLeft = (50 - t.x) * 8 + '%';
-            pImg.style.marginTop = (50 - t.y) * 8 + '%';
+            pImg.style.objectPosition = `${t.x}% ${t.y}%`;
+            pImg.style.transform = `scale(6)`;
             
             foundPopup.classList.add('active');
             setTimeout(() => {
                 foundPopup.classList.remove('active');
                 isPopupActive = false;
                 if(foundIndices.size === 5) {
-                    setTimeout(() => alert("クリア！おめでとう！"), 500);
+                    setTimeout(() => {
+                        // シンプルなクリア表示
+                        const finalClear = document.createElement('div');
+                        finalClear.className = "fixed inset-0 bg-white/90 z-[2000] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500";
+                        finalClear.innerHTML = `
+                            <div class="text-9xl mb-6">🎉</div>
+                            <h2 class="text-5xl font-black text-amber-600 mb-4 italic">ALL CLEAR!</h2>
+                            <p class="text-xl font-bold text-gray-500 mb-10">すべてのネコを見つけたね！<br>君はネコさがしの達人だ！</p>
+                            <button onclick="location.reload()" class="bg-amber-500 text-white font-black text-2xl py-6 px-12 rounded-[2.5rem] shadow-2xl active:scale-95 transition-transform">もういちど遊ぶ</button>
+                        `;
+                        document.body.appendChild(finalClear);
+                    }, 500);
                 }
             }, 2000);
         }
