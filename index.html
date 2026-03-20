@@ -39,15 +39,15 @@
         }
         #stage-image {
             display: block;
-            height: 100%; /* 初期状態は高さ100% */
+            height: 100%;
             width: auto;
             user-select: none;
             -webkit-user-drag: none;
         }
         /* ターゲットプレビュー */
         .target-preview {
-            width: 50px;
-            height: 50px;
+            width: 54px;
+            height: 54px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
@@ -57,11 +57,12 @@
         }
         .crop-img {
             position: absolute;
-            width: 1000%; /* かなり大きくズームして切り抜く */
+            width: 800%; /* 8倍ズーム */
             max-width: none;
-            transform: translate(-50%, -50%);
+            /* 中央配置のための基準設定 */
             top: 50%;
             left: 50%;
+            transform: translate(-50%, -50%);
         }
         .target-preview.found {
             border-color: #10b981;
@@ -105,20 +106,21 @@
             transform: translate(-50%, -50%) scale(1);
         }
         .popup-circle {
-            width: 120px;
-            height: 120px;
+            width: 140px;
+            height: 140px;
             border-radius: 50%;
             overflow: hidden;
             position: relative;
             border: 4px solid #fbbf24;
+            background: #fff;
         }
         .popup-circle img {
             position: absolute;
-            width: 1000%;
+            width: 800%;
             max-width: none;
-            transform: translate(-50%, -50%);
             top: 50%;
             left: 50%;
+            transform: translate(-50%, -50%);
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
@@ -154,7 +156,7 @@
 
     <!-- ポップアップ -->
     <div id="found-popup">
-        <div class="popup-circle"><img id="popup-img" src=""></div>
+        <div class="popup-circle"><img id="popup-img" src="" class="popup-crop"></div>
         <div class="text-center">
             <p id="found-text" class="text-lg font-black text-gray-800"></p>
             <p class="text-amber-500 font-bold text-xl italic">はっけん！🔍</p>
@@ -176,7 +178,6 @@
         let foundIndices = new Set();
         let isPopupActive = false;
         
-        // 座標とズームの状態
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0;
         let baseHeight = 0;
@@ -202,11 +203,8 @@
         }
 
         function initGameLayout() {
-            // 画像の「高さ」を画面の高さに合わせる
             const vh = view.clientHeight;
             const vw = view.clientWidth;
-            
-            // 画像本来の比率から、高さ100%にした時の幅を計算
             const ratio = img.naturalWidth / img.naturalHeight;
             baseHeight = vh;
             baseWidth = vh * ratio;
@@ -214,7 +212,6 @@
             img.style.height = baseHeight + 'px';
             img.style.width = baseWidth + 'px';
             
-            // 初期状態：中央寄せ（幅が画面より広い場合）
             transform.scale = 1;
             transform.x = Math.min(0, (vw - baseWidth) / 2);
             transform.y = 0;
@@ -232,9 +229,14 @@
                 const cImg = document.createElement('img');
                 cImg.className = 'crop-img';
                 cImg.src = path;
-                // ネコが中央に来るように座標を反転
-                cImg.style.marginLeft = (50 - t.x) * 10 + '%'; 
-                cImg.style.marginTop = (50 - t.y) * 10 + '%';
+                
+                // 切り抜き座標の計算を修正:
+                // 画像が 800% (8倍) なので、座標 (t.x, t.y) を中央に持ってくるには
+                // margin-left = (50 - t.x) * 8
+                // margin-top = (50 - t.y) * 8
+                cImg.style.marginLeft = (50 - t.x) * 8 + '%'; 
+                cImg.style.marginTop = (50 - t.y) * 8 + '%';
+                
                 div.appendChild(cImg);
                 container.appendChild(div);
             });
@@ -257,11 +259,9 @@
             mc.on("panmove pinchmove", (ev) => {
                 if (isPopupActive) return;
 
-                // スケール計算 (1倍〜2倍)
                 let newScale = startScale * (ev.scale || 1);
-                transform.scale = Math.max(1, Math.min(newScale, 2));
+                transform.scale = Math.max(1, Math.min(newScale, 2.5)); // 最大ズームを少し上げました
 
-                // 移動計算
                 transform.x = startX + ev.deltaX;
                 transform.y = startY + ev.deltaY;
 
@@ -284,14 +284,12 @@
             const curW = baseWidth * transform.scale;
             const curH = baseHeight * transform.scale;
 
-            // X軸の制限
             if (curW <= vw) {
-                transform.x = (vw - curW) / 2; // 画面より小さい時は中央
+                transform.x = (vw - curW) / 2;
             } else {
                 transform.x = Math.max(Math.min(0, transform.x), vw - curW);
             }
 
-            // Y軸の制限
             if (curH <= vh) {
                 transform.y = (vh - curH) / 2;
             } else {
@@ -308,7 +306,7 @@
             targets.forEach((target, i) => {
                 if (foundIndices.has(i)) return;
                 const dist = Math.sqrt(Math.pow(x - target.x, 2) + Math.pow(y - target.y, 2));
-                if (dist < 3.5) {
+                if (dist < 4) { // 当たり判定を少し調整
                     foundIndices.add(i);
                     addMarker(target.x, target.y);
                     document.getElementById(`preview-${i}`).classList.add('found');
@@ -323,6 +321,7 @@
             m.className = 'marker';
             m.style.left = x + '%';
             m.style.top = y + '%';
+            // マーカーもズームに合わせてサイズ調整されるようpanLayer内に追加
             document.getElementById('marker-layer').appendChild(m);
         }
 
@@ -330,8 +329,10 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             const pImg = document.getElementById('popup-img');
-            pImg.style.marginLeft = (50 - t.x) * 10 + '%';
-            pImg.style.marginTop = (50 - t.y) * 10 + '%';
+            
+            // ポップアップの切り抜きも同じ計算式で修正
+            pImg.style.marginLeft = (50 - t.x) * 8 + '%';
+            pImg.style.marginTop = (50 - t.y) * 8 + '%';
             
             foundPopup.classList.add('active');
             setTimeout(() => {
