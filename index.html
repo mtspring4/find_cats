@@ -49,7 +49,8 @@
             max-width: none;
             outline: 2px solid rgba(251, 191, 36, 0.3);
         }
-        /* ターゲットプレビュー */
+
+        /* ターゲットプレビュー（枠いっぱいに表示） */
         .target-preview {
             width: 50px;
             height: 50px;
@@ -61,10 +62,12 @@
             position: relative;
         }
         .crop-img {
-            width: 100%;
-            height: 100%;
-            object-fit: none;
-            transform-origin: center;
+            position: absolute;
+            /* width/heightを大きくして枠を埋める */
+            width: 500%; 
+            height: 500%;
+            object-fit: cover;
+            /* object-position はJSで設定 */
         }
         .target-preview.found {
             border-color: #10b981;
@@ -119,9 +122,10 @@
             position: relative;
         }
         .popup-circle img {
-            width: 100%;
-            height: 100%;
-            object-fit: none;
+            position: absolute;
+            width: 800%; /* ポップアップ用により大きくズーム */
+            height: 800%;
+            object-fit: cover;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
 
@@ -177,7 +181,6 @@
 
         <div class="viewport" id="viewport">
             <div id="panning-layer">
-                <!-- コンテナの中に画像とマーカーを同梱し、縁の干渉を防ぐ -->
                 <div id="stage-container">
                     <img id="stage-image" src="" alt="Find Map" draggable="false">
                     <div id="marker-layer" class="absolute inset-0 pointer-events-none"></div>
@@ -220,11 +223,9 @@
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0;
         let baseHeight = 0;
-        const CROP_ZOOM = 0.5; // お題のズーム倍率を0.5倍に設定
-        const SAFE_MARGIN = 40; // 画像の周囲に設ける余白（縁）
+        const SAFE_MARGIN = 40; 
 
         const panLayer = document.getElementById('panning-layer');
-        const stageContainer = document.getElementById('stage-container');
         const view = document.getElementById('viewport');
         const img = document.getElementById('stage-image');
         const foundPopup = document.getElementById('found-popup');
@@ -257,12 +258,9 @@
             img.style.height = baseHeight + 'px';
             img.style.width = baseWidth + 'px';
             
-            // 縁を親要素のパディングとして設定
             panLayer.style.padding = `${SAFE_MARGIN}px`;
-            
             transform.scale = 1;
             
-            // 全体の幅（画像＋縁×2）を考慮して中央寄せ
             const totalInitialWidth = baseWidth + (SAFE_MARGIN * 2);
             transform.x = (vw - totalInitialWidth) / 2;
             transform.y = 0;
@@ -282,10 +280,10 @@
                 const cImg = document.createElement('img');
                 cImg.className = 'crop-img';
                 cImg.src = path;
+                // 枠いっぱいに表示するため中央に寄せる
+                cImg.style.left = "-200%"; 
+                cImg.style.top = "-200%";
                 cImg.style.objectPosition = `${t.x}% ${t.y}%`;
-                // object-fit: noneを使用しているため、
-                // scale(0.5)で画像内のサイズを半分にする
-                cImg.style.transform = `scale(${CROP_ZOOM})`;
                 
                 div.appendChild(cImg);
                 container.appendChild(div);
@@ -336,8 +334,6 @@
         function applyBoundaries() {
             const vw = view.clientWidth;
             const vh = view.clientHeight;
-            
-            // 縁（SAFE_MARGIN）を含めたスケーリング後のサイズ
             const curW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
             const curH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
 
@@ -378,8 +374,6 @@
             m.className = 'marker';
             m.style.left = x + '%';
             m.style.top = y + '%';
-            // 画像そのものと同じサイズのコンテナ(stage-container)に追加するので
-            // 座標のズレが発生しなくなります
             document.getElementById('marker-layer').appendChild(m);
         }
 
@@ -387,8 +381,11 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             const pImg = document.getElementById('popup-img');
+            
+            // ポップアップ用ズーム（枠全体を埋める）
+            pImg.style.left = "-350%"; 
+            pImg.style.top = "-350%";
             pImg.style.objectPosition = `${t.x}% ${t.y}%`;
-            pImg.style.transform = `scale(${CROP_ZOOM})`;
             
             foundPopup.classList.add('active');
             setTimeout(() => {
@@ -397,7 +394,7 @@
                 if(foundIndices.size === 5) {
                     setTimeout(() => {
                         const finalClear = document.createElement('div');
-                        finalClear.className = "fixed inset-0 bg-white/95 z-[2000] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500";
+                        finalClear.className = "fixed inset-0 bg-white/95 z-[2000] flex flex-col items-center justify-center p-10 text-center";
                         finalClear.innerHTML = `
                             <div class="text-9xl mb-6">🎉</div>
                             <h2 class="text-5xl font-black text-amber-600 mb-4 italic">STAGE CLEAR!</h2>
