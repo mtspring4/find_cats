@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <style>
         body {
-            background-color: #fffbeb; /* タイトル画面に近いクリーム色 */
+            background-color: #fffbeb;
             touch-action: none;
             font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
             margin: 0;
@@ -32,7 +32,7 @@
             flex-grow: 1;
             overflow: hidden;
             position: relative;
-            background-color: #fffbeb; /* 背景をクリーム色に */
+            background-color: #fffbeb;
         }
         #panning-layer {
             position: absolute;
@@ -52,8 +52,8 @@
 
         /* ターゲットプレビュー */
         .target-preview {
-            width: 50px;
-            height: 50px;
+            width: 54px;
+            height: 54px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
@@ -62,24 +62,23 @@
             position: relative;
         }
         .target-preview-large {
-            width: 72px;
-            height: 72px;
+            width: 80px;
+            height: 80px;
             border-width: 4px;
         }
         .crop-img-container {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            overflow: hidden;
         }
         .crop-img {
             position: absolute;
             max-width: none;
+            /* 縦横比を維持するために height は auto に固定 */
+            height: auto !important; 
         }
 
         .target-preview.found {
@@ -103,7 +102,7 @@
         .modal-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(120, 53, 15, 0.4); /* 少し茶色寄りの透過 */
+            background: rgba(120, 53, 15, 0.4);
             backdrop-filter: blur(6px);
             z-index: 2000;
             display: flex;
@@ -183,21 +182,21 @@
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="stage-menu">
                 <button onclick="startGame('img/01.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
-                        <img src="img/01.PNG" class="absolute w-[280%] h-[280%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                        <img src="img/01.PNG" class="absolute w-[280%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-base mb-1">ねこの田舎町</span>
                 </button>
 
                 <button onclick="startGame('img/02.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
-                        <img src="img/02.PNG" class="absolute w-[280%] h-[280%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                        <img src="img/02.PNG" class="absolute w-[280%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-base mb-1">ニャンコパーク</span>
                 </button>
 
                 <button onclick="startGame('img/03.PNG')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
-                        <img src="img/03.PNG" class="absolute w-[280%] h-[280%] max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                        <img src="img/03.PNG" class="absolute w-[280%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-base mb-1">ねこの夜市</span>
                 </button>
@@ -316,18 +315,31 @@
             isPopupActive = false;
         }
 
+        // 比率を修正した切り抜き要素生成
         function createCropElement(path, x, y, zoom, isLarge = false) {
             const wrapper = document.createElement('div');
             wrapper.className = `target-preview ${isLarge ? 'target-preview-large' : ''}`;
+            
             const container = document.createElement('div');
             container.className = 'crop-img-container';
+            
             const cImg = document.createElement('img');
             cImg.className = 'crop-img';
             cImg.src = path;
-            cImg.style.width = (zoom * 100) + '%';
-            cImg.style.height = (zoom * 100) + '%';
-            cImg.style.left = (50 - x * zoom) + '%';
-            cImg.style.top = (50 - y * zoom) + '%';
+            
+            // 重要: 画像の読み込み完了後に正しい比率で位置を調整
+            cImg.onload = () => {
+                const ratio = cImg.naturalWidth / cImg.naturalHeight;
+                // 幅を指定したズーム倍率に設定し、高さは自動計算に任せる
+                cImg.style.width = (zoom * 100) + '%';
+                
+                // 左位置: 50%を起点に x * zoom 分ずらす
+                cImg.style.left = (50 - x * zoom) + '%';
+                // 上位置: 50%を起点に y * zoom * (縦横比) 分ずらす
+                // 画像が横長の場合、縦方向の移動量は比率で補正する必要がある
+                cImg.style.top = (50 - (y * zoom * ratio)) + '%';
+            };
+            
             container.appendChild(cImg);
             wrapper.appendChild(container);
             return wrapper;
@@ -359,7 +371,6 @@
             panLayer.style.padding = `${SAFE_MARGIN}px`;
             transform.scale = 1;
             
-            // 中央に配置
             const totalInitialWidth = baseWidth + (SAFE_MARGIN * 2);
             transform.x = (vw - totalInitialWidth) / 2;
             transform.y = 0;
@@ -381,7 +392,6 @@
                 startY = transform.y;
                 startScale = transform.scale;
                 
-                // ズームの中心点を記録（ビューポート上の座標）
                 const rect = view.getBoundingClientRect();
                 centerPoint = {
                     x: ev.center.x - rect.left,
@@ -392,18 +402,12 @@
             mc.on("panmove pinchmove", (ev) => {
                 if (isPopupActive) return;
 
-                // ズーム処理
                 let newScale = startScale * (ev.scale || 1);
                 newScale = Math.max(1, Math.min(newScale, 5));
-                
-                // スケール変化量
                 const scaleRatio = newScale / startScale;
 
-                // 中心点に基づいた位置調整
-                // ズームの中心（指の位置）が動かないように移動量を計算
                 transform.x = centerPoint.x - (centerPoint.x - startX) * scaleRatio + ev.deltaX;
                 transform.y = centerPoint.y - (centerPoint.y - startY) * scaleRatio + ev.deltaY;
-                
                 transform.scale = newScale;
                 
                 applyBoundaries();
@@ -428,14 +432,12 @@
             const curW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
             const curH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
 
-            // 幅の制限
             if (curW <= vw) {
                 transform.x = (vw - curW) / 2;
             } else {
                 transform.x = Math.max(Math.min(0, transform.x), vw - curW);
             }
 
-            // 高さの制限
             if (curH <= vh) {
                 transform.y = (vh - curH) / 2;
             } else {
@@ -475,7 +477,8 @@
             document.getElementById('found-text').textContent = t.text;
             const container = document.getElementById('popup-circle-container');
             container.innerHTML = '';
-            const cropEl = createCropElement(currentImage, t.x, t.y, 12, true);
+            // 正解ポップアップは10倍ズーム
+            const cropEl = createCropElement(currentImage, t.x, t.y, 10, true);
             container.appendChild(cropEl.firstChild);
             foundPopup.classList.add('active');
             
