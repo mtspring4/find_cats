@@ -76,7 +76,7 @@
             height: 76px;
             border-width: 4px;
         }
-        /* 切り抜き画像自体のスタイル */
+        /* 切り抜き画像自体のスタイル（高精度 translate方式） */
         .crop-img-inner {
             position: absolute;
             left: 50%;
@@ -227,6 +227,13 @@
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">たのしい幼稚園</span>
                 </button>
+
+                <button onclick="startGame('img/07.PNG', 'ピラミッドのぼうけん')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
+                        <img src="img/07.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                    </div>
+                    <span class="block font-black text-amber-800 text-sm truncate px-1">ピラミッドのぼうけん</span>
+                </button>
             </div>
             <p class="mt-12 text-sm text-amber-900/40 font-bold italic">🐾 2本の指でズームできます 🐾</p>
         </div>
@@ -274,10 +281,9 @@
         let isGameStarted = false;
         let isPopupActive = false;
 
-        // --- ブラウザ標準ズームの防止強化 ---
+        // --- ブラウザ標準ズームの防止 ---
         let lastTouchEnd = 0;
         document.addEventListener('touchstart', (event) => {
-            // タイトル画面、またはポップアップ中はマルチタッチを完全に無効化
             if ((!isGameStarted || isPopupActive) && event.touches.length > 1) {
                 event.preventDefault();
             }
@@ -286,12 +292,12 @@
         document.addEventListener('touchend', (event) => {
             const now = (new Date()).getTime();
             if (now - lastTouchEnd <= 300) {
-                event.preventDefault(); // ダブルタップズーム防止
+                event.preventDefault();
             }
             lastTouchEnd = now;
         }, false);
 
-        // 各ステージのターゲット設定
+        // ステージデータ
         const stageData = {
             'img/01.PNG': [
                 { x: 43.5, y: 78.5, text: "コックさん" },
@@ -334,6 +340,13 @@
                 { x: 75.5, y: 28.5, text: "お昼寝中のネコ" },
                 { x: 13.5, y: 90.5, text: "砂場で遊ぶネコ" },
                 { x: 81.5, y: 70.5, text: "すべり台のネコ" }
+            ],
+            'img/07.PNG': [
+                { x: 35.5, y: 16.0, text: "カメラのネコ" },
+                { x: 78.0, y: 35.5, text: "ガイコツとあくしゅ" },
+                { x: 28.5, y: 45.5, text: "ちずをみるネコ" },
+                { x: 40.5, y: 66.5, text: "ミイラの手" },
+                { x: 90.5, y: 87.0, text: "ピンクのクリスタル" }
             ]
         };
 
@@ -398,8 +411,7 @@
         }
 
         /**
-         * 高精度切り抜き画像生成ロジック
-         * translate(-x%, -y%) を使用して、指定した座標を枠の中心に配置
+         * translate(-x%, -y%) を使用した高精度中心合わせ
          */
         function applyCropStyle(container, path, x, y, zoom) {
             container.innerHTML = ''; 
@@ -408,7 +420,6 @@
             innerImg.className = 'crop-img-inner';
             innerImg.style.width = (zoom * 100) + '%';
             innerImg.style.height = 'auto';
-            // translate で (x, y) 地点を枠の中心(50%, 50%)へ移動させる
             innerImg.style.transform = `translate(-${x}%, -${y}%)`;
             container.appendChild(innerImg);
         }
