@@ -18,7 +18,7 @@
             width: 100vw;
             height: 100vh;
         }
-        /* コンテナ固定 */
+        /* コンテナの固定 */
         .game-screen-layout {
             display: flex;
             flex-direction: column;
@@ -76,7 +76,7 @@
             height: 76px;
             border-width: 4px;
         }
-        /* 高精度切り抜き画像 */
+        /* 切り抜き画像自体のスタイル */
         .crop-img-inner {
             position: absolute;
             left: 50%;
@@ -103,7 +103,7 @@
             z-index: 10;
         }
 
-        /* モーダル */
+        /* モーダル共通 */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -180,7 +180,7 @@
 <body>
 
     <!-- ステージ選択画面 -->
-    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-[#fffbeb] z-[500] p-4 text-center overflow-y-auto" style="touch-action: none;">
+    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-[#fffbeb] z-[500] p-4 text-center overflow-y-auto">
         <div class="max-w-2xl w-full pt-12 pb-12">
             <h1 class="text-5xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
             <p class="text-amber-800/60 mb-10 font-bold">ステージをえらんでね</p>
@@ -235,7 +235,7 @@
     <!-- お題ポップアップ -->
     <div id="start-mission-popup" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-3xl font-black text-amber-600 mb-6 italic">さがしてね！</h2>
+            <h2 class="text-3xl font-black text-amber-600 mb-6 italic" id="mission-title">さがしてね！</h2>
             <div id="mission-targets" class="flex flex-wrap justify-center gap-3 mb-8"></div>
             <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-2xl py-5 rounded-3xl shadow-lg active:scale-95 transition-transform">OK！</button>
         </div>
@@ -274,7 +274,7 @@
         let isGameStarted = false;
         let isPopupActive = false;
 
-        // --- ブラウザ標準ズームの防止 ---
+        // --- ブラウザ標準ズームの防止強化 ---
         let lastTouchEnd = 0;
         document.addEventListener('touchstart', (event) => {
             // タイトル画面、またはポップアップ中はマルチタッチを完全に無効化
@@ -308,11 +308,11 @@
                 { x: 17.5, y: 33.5, text: "かいぞくせんのキャプテン" }
             ],
             'img/03.PNG': [
-                { x: 73.0, y: 17.0, text: "ネコの石像" },
-                { x: 30.0, y: 28.0, text: "緑の屋根の店主" },
-                { x: 65.0, y: 53.0, text: "食事中のネコ" },
-                { x: 70.0, y: 81.0, text: "水色の服のお客さん" },
-                { x: 50.0, y: 7.0, text: "提灯の上で寝るネコ" }
+               { x: 74.0, y: 16.5, text: "ネコのせきぞう" },
+               { x: 30.5, y: 43.5, text: "パーカーのおとこのこ" },
+               { x: 31.0, y: 65.0, text: "まねきねこ？" },
+               { x: 65.0, y: 59.0, text: "あおいトリ" },
+               { x: 71.0, y: 78.5, text: "すてきなきもの" }
             ],
             'img/04.PNG': [
                 { x: 6.8, y: 18.2, text: "地図をみるリスさん" },
@@ -322,11 +322,11 @@
                 { x: 61.5, y: 78.2, text: "ベンチでひとやすみ" }
             ],
             'img/05.PNG': [
-                { x: 27.5, y: 55.0, text: "イカのぼうしのネコ" },
-                { x: 44.5, y: 45.5, text: "ダイバーのネコ" },
-                { x: 17.5, y: 55.5, text: "ペンギンをみるネコ" },
-                { x: 35.5, y: 28.0, text: "ボートにのったネコ" },
-                { x: 42.5, y: 38.5, text: "サメとおよぐネコ" }
+               { x: 9.5, y: 31.5, text: "すいそうからとびだしたサカナ" },
+               { x: 45.0, y: 34.5, text: "ゆうがにおよぐエイ" },
+               { x: 28.0, y: 56.5, text: "イカのきぐるみ" },
+               { x: 13.0, y: 79.5, text: "クラゲさんこんにちは" },
+               { x: 59.5, y: 87.5, text: "アイスを食べるウサギ" }
             ],
             'img/06.PNG': [
                 { x: 28.5, y: 28.5, text: "お絵かきするネコ" },
@@ -397,6 +397,10 @@
             isPopupActive = false;
         }
 
+        /**
+         * 高精度切り抜き画像生成ロジック
+         * translate(-x%, -y%) を使用して、指定した座標を枠の中心に配置
+         */
         function applyCropStyle(container, path, x, y, zoom) {
             container.innerHTML = ''; 
             const innerImg = document.createElement('img');
@@ -404,7 +408,7 @@
             innerImg.className = 'crop-img-inner';
             innerImg.style.width = (zoom * 100) + '%';
             innerImg.style.height = 'auto';
-            // 精密な座標補正: 指定座標(x,y)を枠の中心(50%,50%)へ移動
+            // translate で (x, y) 地点を枠の中心(50%, 50%)へ移動させる
             innerImg.style.transform = `translate(-${x}%, -${y}%)`;
             container.appendChild(innerImg);
         }
@@ -544,7 +548,6 @@
         function showFoundPopup(t) {
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
-            
             const popupImgContainer = document.getElementById('popup-img-container');
             applyCropStyle(popupImgContainer, currentImage, t.x, t.y, 10);
             
