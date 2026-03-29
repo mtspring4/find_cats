@@ -18,6 +18,7 @@
             width: 100vw;
             height: 100vh;
         }
+        /* コンテナ固定 */
         .game-screen-layout {
             display: flex;
             flex-direction: column;
@@ -58,7 +59,7 @@
             max-width: none;
         }
 
-        /* ターゲットプレビュー（円形の切り抜き枠） */
+        /* ターゲットプレビュー（お題） */
         .target-preview {
             width: 48px;
             height: 48px;
@@ -75,13 +76,14 @@
             height: 76px;
             border-width: 4px;
         }
-        /* 切り抜き画像自体のスタイル（座標を完璧に合わせるためのtranslate方式） */
+        /* 高精度切り抜き画像 */
         .crop-img-inner {
             position: absolute;
             left: 50%;
             top: 50%;
             max-width: none;
             pointer-events: none;
+            display: block;
         }
 
         .target-preview.found {
@@ -158,6 +160,7 @@
             border: 6px solid #fbbf24;
             background-color: #fef3c7;
             position: relative;
+            box-sizing: border-box;
         }
 
         .marker {
@@ -177,10 +180,10 @@
 <body>
 
     <!-- ステージ選択画面 -->
-    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-[#fffbeb] z-[500] p-4 text-center overflow-y-auto">
+    <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-[#fffbeb] z-[500] p-4 text-center overflow-y-auto" style="touch-action: none;">
         <div class="max-w-2xl w-full pt-12 pb-12">
-            <h1 class="text-5xl font-black text-amber-600 mb-2 italic tracking-tighter">みっけ!</h1>
-            <p class="text-amber-800/60 mb-10 font-bold">どこにいるかさがしてみよう</p>
+            <h1 class="text-5xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
+            <p class="text-amber-800/60 mb-10 font-bold">ステージをえらんでね</p>
             
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="stage-menu">
                 <button onclick="startGame('img/01.PNG', 'あたたかな村')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
@@ -268,9 +271,13 @@
     </div>
 
     <script>
-        // --- ズーム・ダブルタップの防止 ---
+        let isGameStarted = false;
+        let isPopupActive = false;
+
+        // --- ブラウザ標準ズームの防止 ---
         let lastTouchEnd = 0;
         document.addEventListener('touchstart', (event) => {
+            // タイトル画面、またはポップアップ中はマルチタッチを完全に無効化
             if ((!isGameStarted || isPopupActive) && event.touches.length > 1) {
                 event.preventDefault();
             }
@@ -279,7 +286,7 @@
         document.addEventListener('touchend', (event) => {
             const now = (new Date()).getTime();
             if (now - lastTouchEnd <= 300) {
-                event.preventDefault();
+                event.preventDefault(); // ダブルタップズーム防止
             }
             lastTouchEnd = now;
         }, false);
@@ -308,11 +315,11 @@
                 { x: 50.0, y: 7.0, text: "提灯の上で寝るネコ" }
             ],
             'img/04.PNG': [
-                { x: 26.0, y: 28.0, text: "ペンギンを見るネコ" },
-                { x: 74.0, y: 53.0, text: "ゾウさんに驚くネコ" },
-                { x: 80.0, y: 72.0, text: "ライオンを見守るネコ" },
-                { x: 9.0, y: 84.0, text: "アイスを買うネコ" },
-                { x: 49.0, y: 9.0, text: "門の前のネコ" }
+                { x: 6.8, y: 18.2, text: "地図をみるリスさん" },
+                { x: 22.2, y: 31.5, text: "およいでるペンギン" },
+                { x: 58.2, y: 40.5, text: "はなばたけのうさぎ" },
+                { x: 90.2, y: 25.5, text: "ピクニックのケーキ" },
+                { x: 61.5, y: 78.2, text: "ベンチでひとやすみ" }
             ],
             'img/05.PNG': [
                 { x: 27.5, y: 55.0, text: "イカのぼうしのネコ" },
@@ -332,8 +339,6 @@
 
         let currentImage = "";
         let foundIndices = new Set();
-        let isPopupActive = false;
-        let isGameStarted = false;
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0, baseHeight = 0;
         const SAFE_MARGIN = 20; 
@@ -392,10 +397,6 @@
             isPopupActive = false;
         }
 
-        /**
-         * 高精度切り抜き画像生成ロジック
-         * translate(-x%, -y%) を使用して、指定した座標を枠の中心に正確に配置する
-         */
         function applyCropStyle(container, path, x, y, zoom) {
             container.innerHTML = ''; 
             const innerImg = document.createElement('img');
@@ -543,6 +544,7 @@
         function showFoundPopup(t) {
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
+            
             const popupImgContainer = document.getElementById('popup-img-container');
             applyCropStyle(popupImgContainer, currentImage, t.x, t.y, 10);
             
