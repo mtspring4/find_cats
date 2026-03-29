@@ -18,7 +18,7 @@
             width: 100vw;
             height: 100vh;
         }
-        /* コンテナの固定 */
+        /* ゲーム画面全体の固定レイアウト */
         .game-screen-layout {
             display: flex;
             flex-direction: column;
@@ -59,23 +59,33 @@
             max-width: none;
         }
 
-        /* ターゲットプレビュー（お題） */
+        /* ターゲットプレビュー（円形の切り抜き枠） */
         .target-preview {
-            width: 48px;
-            height: 48px;
+            width: 50px;
+            height: 50px;
             border-radius: 50%;
             border: 3px solid #fbbf24;
             overflow: hidden;
             background-color: #fef3c7;
             flex-shrink: 0;
             position: relative;
-            background-repeat: no-repeat;
             cursor: pointer;
         }
         .target-preview-large {
             width: 76px;
             height: 76px;
             border-width: 4px;
+        }
+        /* 切り抜き画像自体のスタイル（座標を完璧に合わせるための設定） */
+        .crop-img-inner {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            max-width: none;
+            pointer-events: none;
+            /* translate(-x%, -y%) を使うことで、
+               画像上の (x, y) 地点が親要素の中心に重なる 
+            */
         }
 
         .target-preview.found {
@@ -144,7 +154,6 @@
             visibility: visible;
             transform: translate(-50%, -50%) scale(1);
         }
-        /* 発見時の円形画像（修正版） */
         .popup-circle {
             width: 160px;
             height: 160px;
@@ -152,9 +161,7 @@
             overflow: hidden;
             border: 6px solid #fbbf24;
             background-color: #fef3c7;
-            background-repeat: no-repeat;
             position: relative;
-            box-sizing: border-box; /* 境界線が内側に来るように */
         }
 
         .marker {
@@ -180,43 +187,49 @@
             <p class="text-amber-800/60 mb-10 font-bold">隠れているネコをさがそう</p>
             
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="stage-menu">
+                <!-- ステージ 1 -->
                 <button onclick="startGame('img/01.PNG', 'あたたかな村')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/01.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">あたたかな村</span>
                 </button>
 
+                <!-- ステージ 2 -->
                 <button onclick="startGame('img/02.PNG', 'ニャンコパーク')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/02.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">ニャンコパーク</span>
                 </button>
 
+                <!-- ステージ 3 -->
                 <button onclick="startGame('img/03.PNG', 'にぎわいの市場')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/03.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">にぎわいの市場</span>
                 </button>
 
+                <!-- ステージ 4 -->
                 <button onclick="startGame('img/04.PNG', 'たのしい動物園')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/04.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">たのしい動物園</span>
                 </button>
 
+                <!-- ステージ 5 -->
                 <button onclick="startGame('img/05.PNG', 'うみのアクアリウム')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/05.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">うみのアクアリウム</span>
                 </button>
 
+                <!-- ステージ 6 -->
                 <button onclick="startGame('img/06.PNG', 'たのしい幼稚園')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/06.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">たのしい幼稚園</span>
@@ -226,10 +239,10 @@
         </div>
     </div>
 
-    <!-- お題ポップアップ（開始時・お題タップ時共通） -->
+    <!-- お題ポップアップ -->
     <div id="start-mission-popup" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-3xl font-black text-amber-600 mb-6 italic" id="mission-title">さがしてね！</h2>
+            <h2 class="text-3xl font-black text-amber-600 mb-6 italic">さがしてね！</h2>
             <div id="mission-targets" class="flex flex-wrap justify-center gap-3 mb-8"></div>
             <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-2xl py-5 rounded-3xl shadow-lg active:scale-95 transition-transform">OK！</button>
         </div>
@@ -239,7 +252,6 @@
     <div id="game-screen" class="hidden game-screen-layout">
         <div class="header-panel flex items-center justify-between gap-3">
             <button onclick="location.reload()" class="bg-amber-100 px-3 py-2 rounded-xl text-xs font-black text-amber-600 shrink-0 shadow-sm active:bg-amber-200">◀ メニュー</button>
-            <!-- お題エリア：タップするとポップアップ表示 -->
             <div id="target-container" onclick="showMissionPopup()" class="flex gap-2 overflow-x-auto no-scrollbar flex-1 justify-center py-1 cursor-pointer"></div>
             <div class="bg-amber-500 px-3 py-2 rounded-xl shrink-0 shadow-md">
                 <span id="found-count" class="text-white font-black text-lg">0</span><span class="text-amber-200 font-black text-lg">/5</span>
@@ -266,10 +278,10 @@
     </div>
 
     <script>
-        // --- ズーム・ダブルタップの防止 ---
+        // --- ブラウザ標準ズームの防止 ---
         let lastTouchEnd = 0;
         document.addEventListener('touchstart', (event) => {
-            // ゲーム開始前やポップアップ中は、2本指以上の操作を完全に無視
+            // ゲーム中以外、またはポップアップ中は2本指操作を遮断
             if ((!isGameStarted || isPopupActive) && event.touches.length > 1) {
                 event.preventDefault();
             }
@@ -367,7 +379,6 @@
             const targets = stageData[currentImage];
             
             targets.forEach((t, i) => {
-                // ポップアップ用のお題要素を作成
                 const wrapper = document.createElement('div');
                 wrapper.className = 'flex flex-col items-center gap-1';
                 
@@ -392,14 +403,25 @@
             isPopupActive = false;
         }
 
-        // 精密な座標補正計算を適用した切り抜きスタイル
-        function applyCropStyle(el, path, x, y, zoom) {
-            el.style.backgroundImage = `url('${path}')`;
-            el.style.backgroundSize = `${zoom * 100}% auto`;
-            // 補正公式: P = (座標 * ズーム - 50) / (ズーム - 1)
-            const pX = (x * zoom - 50) / (zoom - 1);
-            const pY = (y * zoom - 50) / (zoom - 1);
-            el.style.backgroundPosition = `${pX}% ${pY}%`;
+        /**
+         * 修正版：高精度切り抜き画像生成
+         * translate(-x%, -y%) を使用して、指定した座標を枠のど真ん中に完璧に合わせる
+         */
+        function applyCropStyle(container, path, x, y, zoom) {
+            container.innerHTML = ''; // 既存の中身をクリア
+            const innerImg = document.createElement('img');
+            innerImg.src = path;
+            innerImg.className = 'crop-img-inner';
+            
+            // 拡大率の設定
+            innerImg.style.width = (zoom * 100) + '%';
+            innerImg.style.height = 'auto';
+            
+            // translate で (x, y) 地点を中心に持ってくる
+            // 50% は left/top の基準点。そこから画像内の座標分だけマイナス方向に戻す
+            innerImg.style.transform = `translate(-${x}%, -${y}%)`;
+            
+            container.appendChild(innerImg);
         }
 
         function createCropElement(path, x, y, zoom, isLarge = false) {
@@ -538,7 +560,7 @@
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
             
-            // ポップアップ画像を更新（DOMを再利用してスタイルだけ当てることで二重枠を防止）
+            // 発見時の円形画像も新しい高精度ロジックで描画
             const popupImgContainer = document.getElementById('popup-img-container');
             applyCropStyle(popupImgContainer, currentImage, t.x, t.y, 10);
             
