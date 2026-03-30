@@ -18,7 +18,7 @@
             width: 100vw;
             height: 100vh;
         }
-        /* コンテナの固定 */
+        /* コンテナの固定レイアウト */
         .game-screen-layout {
             display: flex;
             flex-direction: column;
@@ -76,7 +76,7 @@
             height: 76px;
             border-width: 4px;
         }
-        /* 切り抜き画像自体のスタイル（高精度 translate方式） */
+        /* 切り抜き画像（精密な中心合わせ） */
         .crop-img-inner {
             position: absolute;
             left: 50%;
@@ -103,7 +103,7 @@
             z-index: 10;
         }
 
-        /* モーダル共通 */
+        /* モーダル */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -120,8 +120,8 @@
             border-radius: 40px;
             border: 8px solid #fbbf24;
             width: 100%;
-            max-width: 340px;
-            padding: 28px;
+            max-width: 360px;
+            padding: 24px;
             text-align: center;
             box-shadow: 0 25px 60px rgba(0,0,0,0.2);
         }
@@ -186,53 +186,68 @@
             <p class="text-amber-800/60 mb-10 font-bold">ステージをえらんでね</p>
             
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="stage-menu">
+                <!-- ステージ 1 -->
                 <button onclick="startGame('img/01.PNG', 'あたたかな村')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/01.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">あたたかな村</span>
                 </button>
-
+                <!-- ステージ 2 -->
                 <button onclick="startGame('img/02.PNG', 'ニャンコパーク')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/02.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">ニャンコパーク</span>
                 </button>
-
+                <!-- ステージ 3 -->
                 <button onclick="startGame('img/03.PNG', 'にぎわいの市場')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/03.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">にぎわいの市場</span>
                 </button>
-
+                <!-- ステージ 4 -->
                 <button onclick="startGame('img/04.PNG', 'たのしい動物園')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/04.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">たのしい動物園</span>
                 </button>
-
+                <!-- ステージ 5 -->
                 <button onclick="startGame('img/05.PNG', 'うみのアクアリウム')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/05.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">うみのアクアリウム</span>
                 </button>
-
+                <!-- ステージ 6 -->
                 <button onclick="startGame('img/06.PNG', 'たのしい幼稚園')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/06.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">たのしい幼稚園</span>
                 </button>
-
+                <!-- ステージ 7 -->
                 <button onclick="startGame('img/07.PNG', 'ピラミッドのぼうけん')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
                     <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
                         <img src="img/07.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
                     </div>
                     <span class="block font-black text-amber-800 text-sm truncate px-1">ピラミッドのぼうけん</span>
+                </button>
+                <!-- ステージ 8 -->
+                <button onclick="startGame('img/08.PNG', 'にぎやかなくうこう')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
+                        <img src="img/08.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                    </div>
+                    <span class="block font-black text-amber-800 text-sm truncate px-1">にぎやかなくうこう</span>
+                </button>
+                <!-- ステージ 9 (新) -->
+                <button onclick="startGame('img/09.PNG', 'ハロウィンのよる')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
+                        <img src="img/09.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                    </div>
+                    <span class="block font-black text-amber-800 text-sm truncate px-1">ハロウィンのよる</span>
                 </button>
             </div>
             <p class="mt-12 text-sm text-amber-900/40 font-bold italic">🐾 2本の指でズームできます 🐾</p>
@@ -242,8 +257,8 @@
     <!-- お題ポップアップ -->
     <div id="start-mission-popup" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-3xl font-black text-amber-600 mb-6 italic" id="mission-title">さがしてね！</h2>
-            <div id="mission-targets" class="flex flex-wrap justify-center gap-3 mb-8"></div>
+            <h2 class="text-3xl font-black text-amber-600 mb-6 italic">さがしてね！</h2>
+            <div id="mission-targets" class="flex flex-wrap justify-center gap-4 mb-8"></div>
             <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-2xl py-5 rounded-3xl shadow-lg active:scale-95 transition-transform">OK！</button>
         </div>
     </div>
@@ -284,6 +299,7 @@
         // --- ブラウザ標準ズームの防止 ---
         let lastTouchEnd = 0;
         document.addEventListener('touchstart', (event) => {
+            // ゲーム開始前やポップアップ中はマルチタッチを厳格に無効化
             if ((!isGameStarted || isPopupActive) && event.touches.length > 1) {
                 event.preventDefault();
             }
@@ -292,12 +308,12 @@
         document.addEventListener('touchend', (event) => {
             const now = (new Date()).getTime();
             if (now - lastTouchEnd <= 300) {
-                event.preventDefault();
+                event.preventDefault(); 
             }
             lastTouchEnd = now;
         }, false);
 
-        // ステージデータ
+        // 各ステージデータ
         const stageData = {
             'img/01.PNG': [
                 { x: 43.5, y: 78.5, text: "コックさん" },
@@ -314,11 +330,11 @@
                 { x: 17.5, y: 33.5, text: "かいぞくせんのキャプテン" }
             ],
             'img/03.PNG': [
-               { x: 74.0, y: 16.5, text: "ネコのせきぞう" },
-               { x: 30.5, y: 43.5, text: "パーカーのおとこのこ" },
-               { x: 31.0, y: 65.0, text: "まねきねこ？" },
-               { x: 65.0, y: 59.0, text: "あおいトリ" },
-               { x: 71.0, y: 78.5, text: "すてきなきもの" }
+                { x: 74.0, y: 16.5, text: "ネコのせきぞう" },
+                { x: 30.5, y: 43.5, text: "パーカーのおとこのこ" },
+                { x: 31.0, y: 65.0, text: "まねきねこ？" },
+                { x: 65.0, y: 59.0, text: "あおいトリ" },
+                { x: 71.0, y: 78.5, text: "すてきなきもの" }
             ],
             'img/04.PNG': [
                 { x: 6.8, y: 18.2, text: "地図をみるリスさん" },
@@ -328,11 +344,11 @@
                 { x: 61.5, y: 78.2, text: "ベンチでひとやすみ" }
             ],
             'img/05.PNG': [
-               { x: 9.5, y: 31.5, text: "すいそうからとびだしたサカナ" },
-               { x: 45.0, y: 34.5, text: "ゆうがにおよぐエイ" },
-               { x: 28.0, y: 56.5, text: "イカのきぐるみ" },
-               { x: 13.0, y: 79.5, text: "クラゲさんこんにちは" },
-               { x: 59.5, y: 87.5, text: "アイスを食べるウサギ" }
+                { x: 9.5, y: 31.5, text: "すいそうからとびだしたサカナ" },
+                { x: 45.0, y: 34.5, text: "ゆうがにおよぐエイ" },
+                { x: 28.0, y: 56.5, text: "イカのきぐるみ" },
+                { x: 13.0, y: 79.5, text: "クラゲさんこんにちは" },
+                { x: 59.5, y: 87.5, text: "アイスを食べるウサギ" }
             ],
             'img/06.PNG': [
                 { x: 28.5, y: 28.5, text: "お絵かきするネコ" },
@@ -347,6 +363,20 @@
                 { x: 28.5, y: 45.5, text: "ちずをみるネコ" },
                 { x: 40.5, y: 66.5, text: "ミイラの手" },
                 { x: 90.5, y: 87.0, text: "ピンクのクリスタル" }
+            ],
+            'img/08.PNG': [
+                { x: 7.0, y: 11.0, text: "おはなをもったクマさん" },
+                { x: 39.5, y: 19.0, text: "ひこうきのネコマーク" },
+                { x: 87.0, y: 17.5, text: "エスカレーターのネコ" },
+                { x: 35.5, y: 40.0, text: "カートにのったウサギ" },
+                { x: 26.5, y: 90.0, text: "ネコのカバン" }
+            ],
+            'img/09.PNG': [
+                { x: 48.0, y: 10.5, text: "ほうきにのったネコ" },
+                { x: 27.5, y: 22.0, text: "ぼうしのカボチャ" },
+                { x: 37.0, y: 48.0, text: "のぞいているおばけ" },
+                { x: 65.7, y: 60.5, text: "カボチャにはいったマウス" },
+                { x: 12.5, y: 78.5, text: "コスチュームのキツネ" }
             ]
         };
 
@@ -387,13 +417,13 @@
             
             targets.forEach((t, i) => {
                 const wrapper = document.createElement('div');
-                wrapper.className = 'flex flex-col items-center gap-1';
+                wrapper.className = 'flex flex-col items-center gap-1 w-[90px]';
                 
                 const el = createCropElement(currentImage, t.x, t.y, 8, true);
                 if (foundIndices.has(i)) el.classList.add('found');
                 
                 const text = document.createElement('span');
-                text.className = 'text-[10px] font-bold text-amber-800';
+                text.className = 'text-[9px] font-black text-amber-800 leading-tight h-8 flex items-center justify-center text-center px-1';
                 text.textContent = t.text;
                 
                 wrapper.appendChild(el);
@@ -410,9 +440,6 @@
             isPopupActive = false;
         }
 
-        /**
-         * translate(-x%, -y%) を使用した高精度中心合わせ
-         */
         function applyCropStyle(container, path, x, y, zoom) {
             container.innerHTML = ''; 
             const innerImg = document.createElement('img');
@@ -420,6 +447,7 @@
             innerImg.className = 'crop-img-inner';
             innerImg.style.width = (zoom * 100) + '%';
             innerImg.style.height = 'auto';
+            // 精密補正: (x, y) を親要素の中心に合わせる
             innerImg.style.transform = `translate(-${x}%, -${y}%)`;
             container.appendChild(innerImg);
         }
