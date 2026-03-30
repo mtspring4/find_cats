@@ -6,6 +6,56 @@
     <title>Find the Cats! - 猫探しゲーム</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <!-- Firebase SDK for data persistence -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDocs, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        window.db = null;
+        window.currentUser = null;
+        window.clearedStages = new Set();
+
+        const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+        if (firebaseConfig.apiKey) {
+            const app = initializeApp(firebaseConfig);
+            window.db = getFirestore(app);
+            const auth = getAuth(app);
+            
+            signInAnonymously(auth).catch(console.error);
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    window.currentUser = user;
+                    await loadProgress();
+                    if (typeof renderMenu === 'function') renderMenu();
+                }
+            });
+        }
+
+        async function loadProgress() {
+            if (!window.db || !window.currentUser) return;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'cat-finder-default';
+            const colRef = collection(window.db, 'artifacts', appId, 'users', window.currentUser.uid, 'cleared_stages');
+            try {
+                const snapshot = await getDocs(query(colRef));
+                snapshot.forEach(doc => {
+                    window.clearedStages.add(doc.id);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        window.saveProgress = async (stageId) => {
+            const encodedId = btoa(stageId);
+            window.clearedStages.add(encodedId);
+            if (!window.db || !window.currentUser) return;
+            const appId = typeof __app_id !== 'undefined' ? __app_id : 'cat-finder-default';
+            const docRef = doc(window.db, 'artifacts', appId, 'users', window.currentUser.uid, 'cleared_stages', encodedId);
+            try {
+                await setDoc(docRef, { cleared: true, timestamp: Date.now() });
+            } catch (e) { console.error(e); }
+        };
+    </script>
+
     <style>
         body {
             background-color: #fffbeb;
@@ -18,7 +68,6 @@
             width: 100vw;
             height: 100vh;
         }
-        /* コンテナの固定レイアウト */
         .game-screen-layout {
             display: flex;
             flex-direction: column;
@@ -47,6 +96,7 @@
             position: absolute;
             transform-origin: 0 0;
             will-change: transform;
+            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
         }
         #stage-container {
             position: relative;
@@ -59,7 +109,6 @@
             max-width: none;
         }
 
-        /* ターゲットプレビュー（お題） */
         .target-preview {
             width: 48px;
             height: 48px;
@@ -72,11 +121,10 @@
             cursor: pointer;
         }
         .target-preview-large {
-            width: 76px;
-            height: 76px;
+            width: 80px;
+            height: 80px;
             border-width: 4px;
         }
-        /* 切り抜き画像（精密な中心合わせ） */
         .crop-img-inner {
             position: absolute;
             left: 50%;
@@ -103,7 +151,6 @@
             z-index: 10;
         }
 
-        /* モーダル */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -120,13 +167,12 @@
             border-radius: 40px;
             border: 8px solid #fbbf24;
             width: 100%;
-            max-width: 360px;
-            padding: 24px;
+            max-width: 340px;
+            padding: 28px;
             text-align: center;
             box-shadow: 0 25px 60px rgba(0,0,0,0.2);
         }
 
-        /* 発見ポップアップ */
         #found-popup {
             position: fixed;
             top: 50%;
@@ -175,9 +221,39 @@
             background: rgba(239, 68, 68, 0.2);
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
+
+        #fireworks-canvas {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 2900;
+        }
+
+        .crown-badge {
+            position: absolute;
+            top: -10px;
+            right: -10px;
+            background: #fbbf24;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border: 2px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            animation: crownBounce 2s infinite;
+        }
+        @keyframes crownBounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
     </style>
 </head>
 <body>
+
+    <canvas id="fireworks-canvas"></canvas>
 
     <!-- ステージ選択画面 -->
     <div id="start-screen" class="fixed inset-0 flex flex-col items-center justify-start bg-[#fffbeb] z-[500] p-4 text-center overflow-y-auto">
@@ -185,79 +261,15 @@
             <h1 class="text-5xl font-black text-amber-600 mb-2 italic tracking-tighter">Find Cats!</h1>
             <p class="text-amber-800/60 mb-10 font-bold">ステージをえらんでね</p>
             
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="stage-menu">
-                <!-- ステージ 1 -->
-                <button onclick="startGame('img/01.PNG', 'あたたかな村')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/01.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">あたたかな村</span>
-                </button>
-                <!-- ステージ 2 -->
-                <button onclick="startGame('img/02.PNG', 'ニャンコパーク')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/02.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">ニャンコパーク</span>
-                </button>
-                <!-- ステージ 3 -->
-                <button onclick="startGame('img/03.PNG', 'にぎわいの市場')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/03.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">にぎわいの市場</span>
-                </button>
-                <!-- ステージ 4 -->
-                <button onclick="startGame('img/04.PNG', 'たのしい動物園')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/04.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">たのしい動物園</span>
-                </button>
-                <!-- ステージ 5 -->
-                <button onclick="startGame('img/05.PNG', 'うみのアクアリウム')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/05.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">うみのアクアリウム</span>
-                </button>
-                <!-- ステージ 6 -->
-                <button onclick="startGame('img/06.PNG', 'たのしい幼稚園')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/06.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">たのしい幼稚園</span>
-                </button>
-                <!-- ステージ 7 -->
-                <button onclick="startGame('img/07.PNG', 'ピラミッドのぼうけん')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/07.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">ピラミッドのぼうけん</span>
-                </button>
-                <!-- ステージ 8 -->
-                <button onclick="startGame('img/08.PNG', 'にぎやかなくうこう')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/08.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">にぎやかなくうこう</span>
-                </button>
-                <!-- ステージ 9 (新) -->
-                <button onclick="startGame('img/09.PNG', 'ハロウィンのよる')" class="bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left">
-                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
-                        <img src="img/09.PNG" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
-                    </div>
-                    <span class="block font-black text-amber-800 text-sm truncate px-1">ハロウィンのよる</span>
-                </button>
-            </div>
-            <p class="mt-12 text-sm text-amber-900/40 font-bold italic">🐾 2本の指でズームできます 🐾</p>
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-6" id="stage-menu"></div>
+            <p class="mt-12 text-sm text-amber-900/40 font-bold italic">🐾 指でズームしてさがしてね 🐾</p>
         </div>
     </div>
 
     <!-- お題ポップアップ -->
     <div id="start-mission-popup" class="modal-overlay hidden">
         <div class="modal-content">
-            <h2 class="text-3xl font-black text-amber-600 mb-6 italic">さがしてね！</h2>
+            <h2 class="text-3xl font-black text-amber-600 mb-6 italic" id="mission-title">さがしてね！</h2>
             <div id="mission-targets" class="flex flex-wrap justify-center gap-4 mb-8"></div>
             <button onclick="closeMissionPopup()" class="w-full bg-amber-500 text-white font-black text-2xl py-5 rounded-3xl shadow-lg active:scale-95 transition-transform">OK！</button>
         </div>
@@ -266,7 +278,7 @@
     <!-- ゲーム画面 -->
     <div id="game-screen" class="hidden game-screen-layout">
         <div class="header-panel flex items-center justify-between gap-3">
-            <button onclick="location.reload()" class="bg-amber-100 px-3 py-2 rounded-xl text-xs font-black text-amber-600 shrink-0 shadow-sm active:bg-amber-200">◀ メニュー</button>
+            <button onclick="location.reload()" class="bg-amber-100 px-3 py-2 rounded-xl text-xs font-black text-amber-600 shrink-0 shadow-sm active:bg-amber-200">◀ 戻る</button>
             <div id="target-container" onclick="showMissionPopup()" class="flex gap-2 overflow-x-auto no-scrollbar flex-1 justify-center py-1 cursor-pointer"></div>
             <div class="bg-amber-500 px-3 py-2 rounded-xl shrink-0 shadow-md">
                 <span id="found-count" class="text-white font-black text-lg">0</span><span class="text-amber-200 font-black text-lg">/5</span>
@@ -293,27 +305,20 @@
     </div>
 
     <script>
-        let isGameStarted = false;
-        let isPopupActive = false;
+        const stages = [
+            { id: 'img/01.PNG', name: 'あたたかな村' },
+            { id: 'img/02.PNG', name: 'ニャンコパーク' },
+            { id: 'img/03.PNG', name: 'にぎわいの市場' },
+            { id: 'img/04.PNG', name: 'たのしい動物園' },
+            { id: 'img/05.PNG', name: 'うみのアクアリウム' },
+            { id: 'img/06.PNG', name: 'たのしい幼稚園' },
+            { id: 'img/07.PNG', name: 'ピラミッドのぼうけん' },
+            { id: 'img/08.PNG', name: 'にぎやかなくうこう' },
+            { id: 'img/09.PNG', name: 'ハロウィンのよる' },
+            { id: 'img/10.PNG', name: 'えきまえひろば' },
+            { id: 'img/11.PNG', name: 'おしろのダンスパーティー' }
+        ];
 
-        // --- ブラウザ標準ズームの防止 ---
-        let lastTouchEnd = 0;
-        document.addEventListener('touchstart', (event) => {
-            // ゲーム開始前やポップアップ中はマルチタッチを厳格に無効化
-            if ((!isGameStarted || isPopupActive) && event.touches.length > 1) {
-                event.preventDefault();
-            }
-        }, { passive: false });
-
-        document.addEventListener('touchend', (event) => {
-            const now = (new Date()).getTime();
-            if (now - lastTouchEnd <= 300) {
-                event.preventDefault(); 
-            }
-            lastTouchEnd = now;
-        }, false);
-
-        // 各ステージデータ
         const stageData = {
             'img/01.PNG': [
                 { x: 43.5, y: 78.5, text: "コックさん" },
@@ -377,11 +382,27 @@
                 { x: 37.0, y: 48.0, text: "のぞいているおばけ" },
                 { x: 65.7, y: 60.5, text: "カボチャにはいったマウス" },
                 { x: 12.5, y: 78.5, text: "コスチュームのキツネ" }
+            ],
+            'img/10.PNG': [
+                { x: 24.5, y: 24.0, text: "きいろいアヒル" },
+                { x: 62.5, y: 34.5, text: "おはなやさんのネコ" },
+                { x: 20.5, y: 45.5, text: "てをふるネコ" },
+                { x: 49.0, y: 62.0, text: "ベストをきたネコ" },
+                { x: 65.5, y: 78.5, text: "カメラをもったネコ" }
+            ],
+            'img/11.PNG': [
+                { x: 81.5, y: 12.5, text: "まどからみてるネコ" },
+                { x: 30.5, y: 29.5, text: "バルコニーのふたり" },
+                { x: 92.5, y: 31.5, text: "ながめているキツネ" },
+                { x: 9.5, y: 58.5, text: "バイオリンをひくネコ" },
+                { x: 48.5, y: 72.5, text: "ドレスのダンスネコ" }
             ]
         };
 
         let currentImage = "";
         let foundIndices = new Set();
+        let isGameStarted = false;
+        let isPopupActive = false;
         let transform = { x: 0, y: 0, scale: 1 };
         let baseWidth = 0, baseHeight = 0;
         const SAFE_MARGIN = 20; 
@@ -390,14 +411,59 @@
         const view = document.getElementById('viewport');
         const img = document.getElementById('stage-image');
         const foundPopup = document.getElementById('found-popup');
+        const fireworksCanvas = document.getElementById('fireworks-canvas');
+        const fwCtx = fireworksCanvas.getContext('2d');
 
-        function startGame(path) {
+        window.renderMenu = function() {
+            const menu = document.getElementById('stage-menu');
+            if (!menu) return;
+            menu.innerHTML = '';
+            stages.forEach(s => {
+                const encodedId = btoa(s.id);
+                const isCleared = window.clearedStages && window.clearedStages.has(encodedId);
+                const btn = document.createElement('button');
+                btn.onclick = () => startGame(s.id, s.name);
+                btn.className = "bg-white rounded-3xl border-4 border-amber-100 p-2 hover:border-amber-400 transition-all shadow-sm active:scale-95 group text-left relative";
+                btn.innerHTML = `
+                    <div class="aspect-square rounded-2xl overflow-hidden mb-3 relative bg-amber-50 pointer-events-none">
+                        <img src="${s.id}" class="absolute w-[250%] h-auto max-w-none top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 object-cover group-hover:scale-110 transition-transform">
+                    </div>
+                    <span class="block font-black text-amber-800 text-xs sm:text-sm truncate px-1">${s.name}</span>
+                    ${isCleared ? '<div class="crown-badge">👑</div>' : ''}
+                `;
+                menu.appendChild(btn);
+            });
+        };
+
+        window.onload = () => {
+            renderMenu();
+            window.addEventListener('resize', () => {
+                fireworksCanvas.width = window.innerWidth;
+                fireworksCanvas.height = window.innerHeight;
+            });
+            fireworksCanvas.width = window.innerWidth;
+            fireworksCanvas.height = window.innerHeight;
+        };
+
+        let lastTouchEnd = 0;
+        document.addEventListener('touchstart', (e) => {
+            if ((!isGameStarted || isPopupActive) && e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('touchend', (e) => {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) e.preventDefault();
+            lastTouchEnd = now;
+        }, false);
+
+        function startGame(path, name) {
             currentImage = path;
             img.src = path;
             foundIndices.clear();
             document.getElementById('found-count').textContent = '0';
             document.getElementById('marker-layer').innerHTML = '';
-            
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
 
@@ -410,27 +476,45 @@
             };
         }
 
+        function initGameLayout() {
+            const vh = view.clientHeight;
+            const vw = view.clientWidth;
+            const availableHeight = vh - (SAFE_MARGIN * 2);
+            const ratio = img.naturalWidth / img.naturalHeight;
+            baseHeight = availableHeight;
+            baseWidth = availableHeight * ratio;
+            img.style.height = baseHeight + 'px';
+            img.style.width = baseWidth + 'px';
+            panLayer.style.padding = `${SAFE_MARGIN}px`;
+            resetZoom();
+        }
+
+        function resetZoom() {
+            const vh = view.clientHeight;
+            const vw = view.clientWidth;
+            transform.scale = 1;
+            const totalWidth = baseWidth + (SAFE_MARGIN * 2);
+            transform.x = (vw - totalWidth) / 2;
+            transform.y = 0;
+            updateCSS();
+        }
+
         function showMissionPopup() {
             const missionContainer = document.getElementById('mission-targets');
             missionContainer.innerHTML = '';
             const targets = stageData[currentImage];
-            
             targets.forEach((t, i) => {
                 const wrapper = document.createElement('div');
                 wrapper.className = 'flex flex-col items-center gap-1 w-[90px]';
-                
                 const el = createCropElement(currentImage, t.x, t.y, 8, true);
                 if (foundIndices.has(i)) el.classList.add('found');
-                
                 const text = document.createElement('span');
                 text.className = 'text-[9px] font-black text-amber-800 leading-tight h-8 flex items-center justify-center text-center px-1';
                 text.textContent = t.text;
-                
                 wrapper.appendChild(el);
                 wrapper.appendChild(text);
                 missionContainer.appendChild(wrapper);
             });
-
             document.getElementById('start-mission-popup').classList.remove('hidden');
             isPopupActive = true;
         }
@@ -447,7 +531,6 @@
             innerImg.className = 'crop-img-inner';
             innerImg.style.width = (zoom * 100) + '%';
             innerImg.style.height = 'auto';
-            // 精密補正: (x, y) を親要素の中心に合わせる
             innerImg.style.transform = `translate(-${x}%, -${y}%)`;
             container.appendChild(innerImg);
         }
@@ -470,32 +553,9 @@
             });
         }
 
-        function initGameLayout() {
-            const vh = view.clientHeight;
-            const vw = view.clientWidth;
-            const availableHeight = vh - (SAFE_MARGIN * 2);
-            const ratio = img.naturalWidth / img.naturalHeight;
-            
-            baseHeight = availableHeight;
-            baseWidth = availableHeight * ratio;
-            
-            img.style.height = baseHeight + 'px';
-            img.style.width = baseWidth + 'px';
-            
-            panLayer.style.padding = `${SAFE_MARGIN}px`;
-            transform.scale = 1;
-            
-            const totalInitialWidth = baseWidth + (SAFE_MARGIN * 2);
-            transform.x = (vw - totalInitialWidth) / 2;
-            transform.y = 0;
-            
-            updateCSS();
-        }
-
         let mc = null;
         function setupInteractions() {
-            if (mc) return; 
-
+            if (mc) mc.destroy(); 
             mc = new Hammer.Manager(view);
             mc.add(new Hammer.Pan({ threshold: 0, pointers: 0 }));
             mc.add(new Hammer.Pinch({ threshold: 0 })).recognizeWith(mc.get('pan'));
@@ -510,10 +570,7 @@
                 startY = transform.y;
                 startScale = transform.scale;
                 const rect = view.getBoundingClientRect();
-                centerPoint = {
-                    x: ev.center.x - rect.left,
-                    y: ev.center.y - rect.top
-                };
+                centerPoint = { x: ev.center.x - rect.left, y: ev.center.y - rect.top };
             });
 
             mc.on("panmove pinchmove", (ev) => {
@@ -545,16 +602,10 @@
             const vh = view.clientHeight;
             const curW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
             const curH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
-            if (curW <= vw) {
-                transform.x = (vw - curW) / 2;
-            } else {
-                transform.x = Math.max(Math.min(0, transform.x), vw - curW);
-            }
-            if (curH <= vh) {
-                transform.y = (vh - curH) / 2;
-            } else {
-                transform.y = Math.max(Math.min(0, transform.y), vh - curH);
-            }
+            if (curW <= vw) transform.x = (vw - curW) / 2;
+            else transform.x = Math.max(Math.min(0, transform.x), vw - curW);
+            if (curH <= vh) transform.y = (vh - curH) / 2;
+            else transform.y = Math.max(Math.min(0, transform.y), vh - curH);
         }
 
         function updateCSS() {
@@ -566,9 +617,13 @@
             targets.forEach((target, i) => {
                 if (foundIndices.has(i)) return;
                 const dist = Math.sqrt(Math.pow(x - target.x, 2) + Math.pow(y - target.y, 2));
-                if (dist < 4.5) { 
+                if (dist < 5.0) { 
                     foundIndices.add(i);
-                    addMarker(target.x, target.y);
+                    const marker = document.createElement('div');
+                    marker.className = 'marker';
+                    marker.style.left = target.x + '%';
+                    marker.style.top = target.y + '%';
+                    document.getElementById('marker-layer').appendChild(marker);
                     document.getElementById(`preview-${i}`).classList.add('found');
                     document.getElementById('found-count').textContent = foundIndices.size;
                     showFoundPopup(target);
@@ -576,41 +631,79 @@
             });
         }
 
-        function addMarker(x, y) {
-            const m = document.createElement('div');
-            m.className = 'marker';
-            m.style.left = x + '%';
-            m.style.top = y + '%';
-            document.getElementById('marker-layer').appendChild(m);
-        }
-
         function showFoundPopup(t) {
             isPopupActive = true;
             document.getElementById('found-text').textContent = t.text;
-            const popupImgContainer = document.getElementById('popup-img-container');
-            applyCropStyle(popupImgContainer, currentImage, t.x, t.y, 10);
-            
+            applyCropStyle(document.getElementById('popup-img-container'), currentImage, t.x, t.y, 10);
             foundPopup.classList.add('active');
+            
             setTimeout(() => {
                 foundPopup.classList.remove('active');
-                isPopupActive = false;
-                if(foundIndices.size === 5) showClearScreen();
+                if (foundIndices.size === 5) {
+                    startClearSequence();
+                } else {
+                    isPopupActive = false;
+                }
             }, 2500);
         }
 
-        function showClearScreen() {
+        async function startClearSequence() {
+            resetZoom();
+            if (window.saveProgress) await window.saveProgress(currentImage);
+            startFireworks();
             setTimeout(() => {
-                isGameStarted = false;
                 const finalClear = document.createElement('div');
-                finalClear.className = "fixed inset-0 bg-[#fffbeb]/95 z-[3000] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500";
+                finalClear.className = "fixed inset-0 bg-[#fffbeb]/90 z-[3000] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500";
                 finalClear.innerHTML = `
-                    <div class="text-9xl mb-6">🏆</div>
-                    <h2 class="text-5xl font-black text-amber-600 mb-4 italic tracking-tighter">STAGE CLEAR!</h2>
-                    <p class="text-xl font-bold text-amber-900/60 mb-10">すべてのネコを見つけたね！</p>
+                    <div class="text-9xl mb-6">👑</div>
+                    <h2 class="text-5xl font-black text-amber-600 mb-4 italic tracking-tighter leading-tight">クリアおめでとう！</h2>
+                    <p class="text-xl font-bold text-amber-900/60 mb-10">すべてのネコを発見したね！<br>キミはネコ探しマスターだ！</p>
                     <button onclick="location.reload()" class="bg-amber-500 text-white font-black text-2xl py-6 px-12 rounded-[2.5rem] shadow-2xl active:scale-95 transition-transform">メニューへもどる</button>
                 `;
                 document.body.appendChild(finalClear);
-            }, 500);
+            }, 1500);
+        }
+
+        let particles = [];
+        function startFireworks() {
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500'];
+            function spawn() {
+                const x = Math.random() * fireworksCanvas.width;
+                const y = Math.random() * fireworksCanvas.height * 0.5;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                for (let i = 0; i < 50; i++) {
+                    particles.push({
+                        x, y,
+                        vx: Math.cos(i) * Math.random() * 10,
+                        vy: Math.sin(i) * Math.random() * 10,
+                        life: 1.0,
+                        color
+                    });
+                }
+            }
+            let count = 0;
+            const interval = setInterval(() => {
+                spawn();
+                if (++count > 12) clearInterval(interval);
+            }, 300);
+            requestAnimationFrame(updateFireworks);
+        }
+
+        function updateFireworks() {
+            fwCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+            particles = particles.filter(p => p.life > 0);
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.08; 
+                p.life -= 0.012;
+                fwCtx.globalAlpha = p.life;
+                fwCtx.fillStyle = p.color;
+                fwCtx.beginPath();
+                fwCtx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                fwCtx.fill();
+            });
+            if (particles.length > 0) requestAnimationFrame(updateFireworks);
         }
     </script>
 </body>
