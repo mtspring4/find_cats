@@ -6,7 +6,8 @@
     <title>Find the Cats! - 猫探しゲーム</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
-    <!-- Firebase SDK for data persistence -->
+    
+    <!-- Firebase SDK (データ保存用) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getFirestore, doc, setDoc, getDocs, collection, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -97,9 +98,7 @@
             position: absolute;
             transform-origin: 0 0;
             will-change: transform;
-            /* 通常時は transition を無しにしてレスポンスを最優先にする */
         }
-        /* クリア時の自動ズームアウト用アニメーションクラス */
         #panning-layer.smooth-transition {
             transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
         }
@@ -232,7 +231,7 @@
             position: fixed;
             inset: 0;
             pointer-events: none;
-            z-index: 2900;
+            z-index: 2100; /* ステージの上、モーダルの下 */
         }
 
         .crown-badge {
@@ -250,6 +249,7 @@
             border: 2px solid white;
             box-shadow: 0 4px 10px rgba(0,0,0,0.1);
             animation: crownBounce 2s infinite;
+            z-index: 10;
         }
         @keyframes crownBounce {
             0%, 100% { transform: translateY(0); }
@@ -443,17 +443,16 @@
 
         window.onload = () => {
             renderMenu();
-            window.addEventListener('resize', () => {
-                fireworksCanvas.width = window.innerWidth;
-                fireworksCanvas.height = window.innerHeight;
-            });
-            fireworksCanvas.width = window.innerWidth;
-            fireworksCanvas.height = window.innerHeight;
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
         };
 
-        // --- ブラウザ標準ズームの防止 ---
+        function resizeCanvas() {
+            fireworksCanvas.width = window.innerWidth;
+            fireworksCanvas.height = window.innerHeight;
+        }
+
         document.addEventListener('touchstart', (e) => {
-            // タイトル画面、またはポップアップ中はマルチタッチを完全に無効化
             if ((!isGameStarted || isPopupActive) && e.touches.length > 1) {
                 e.preventDefault();
             }
@@ -487,10 +486,30 @@
             img.style.height = baseHeight + 'px';
             img.style.width = baseWidth + 'px';
             panLayer.style.padding = `${SAFE_MARGIN}px`;
-            resetZoom(true); // 最初は即時配置
+            
+            // 開始時：1.5倍で中央表示
+            setInitialZoom(1.5);
         }
 
-        function resetZoom(instant = false) {
+        function setInitialZoom(targetScale) {
+            const vh = view.clientHeight;
+            const vw = view.clientWidth;
+            
+            transform.scale = targetScale;
+            
+            // ステージ全体のサイズ（マージン含む）
+            const totalW = (baseWidth + SAFE_MARGIN * 2) * targetScale;
+            const totalH = (baseHeight + SAFE_MARGIN * 2) * targetScale;
+            
+            // ビューポート中央に来るように座標計算
+            transform.x = (vw - totalW) / 2;
+            transform.y = (vh - totalH) / 2;
+            
+            panLayer.classList.remove('smooth-transition');
+            updateCSS();
+        }
+
+        function resetToFullView() {
             const vh = view.clientHeight;
             const vw = view.clientWidth;
             transform.scale = 1;
@@ -498,9 +517,7 @@
             transform.x = (vw - totalWidth) / 2;
             transform.y = 0;
             
-            if (instant) panLayer.classList.remove('smooth-transition');
-            else panLayer.classList.add('smooth-transition');
-            
+            panLayer.classList.add('smooth-transition');
             updateCSS();
         }
 
@@ -571,7 +588,7 @@
 
             mc.on("panstart pinchstart", (ev) => {
                 if (!isGameStarted || isPopupActive) return;
-                panLayer.classList.remove('smooth-transition'); // 操作中はアニメーションをオフにする
+                panLayer.classList.remove('smooth-transition');
                 startX = transform.x;
                 startY = transform.y;
                 startScale = transform.scale;
@@ -587,8 +604,6 @@
                 newScale = Math.max(1, Math.min(newScale, 5));
                 
                 const scaleRatio = newScale / startScale;
-
-                // ピンチの中心点を基準にスケーリング
                 transform.x = centerPoint.x - (centerPoint.x - startX) * scaleRatio + ev.deltaX;
                 transform.y = centerPoint.y - (centerPoint.y - startY) * scaleRatio + ev.deltaY;
                 transform.scale = newScale;
@@ -599,8 +614,6 @@
 
             mc.on("tap", (ev) => {
                 if (!isGameStarted || isPopupActive) return; 
-                const rect = img.getBoundingClientRect(); 
-                // スケール後の座標計算
                 const curW = baseWidth * transform.scale;
                 const curH = baseHeight * transform.scale;
                 const imgLeft = transform.x + SAFE_MARGIN * transform.scale;
@@ -621,17 +634,11 @@
             const totalW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
             const totalH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
 
-            if (totalW <= vw) {
-                transform.x = (vw - totalW) / 2;
-            } else {
-                transform.x = Math.max(Math.min(0, transform.x), vw - totalW);
-            }
+            if (totalW <= vw) transform.x = (vw - totalW) / 2;
+            else transform.x = Math.max(Math.min(0, transform.x), vw - totalW);
 
-            if (totalH <= vh) {
-                transform.y = (vh - totalH) / 2;
-            } else {
-                transform.y = Math.max(Math.min(0, transform.y), vh - totalH);
-            }
+            if (totalH <= vh) transform.y = (vh - totalH) / 2;
+            else transform.y = Math.max(Math.min(0, transform.y), vh - totalH);
         }
 
         function updateCSS() {
@@ -674,36 +681,49 @@
         }
 
         async function startClearSequence() {
-            // 自動ズームアウト
-            resetZoom(false);
+            // ズームを全体に戻す
+            resetToFullView();
+            
+            // クラウド保存
             if (window.saveProgress) await window.saveProgress(currentImage);
-            startFireworks();
+            
+            // 花火開始
+            setTimeout(() => {
+                startFireworks();
+            }, 500);
+
+            // クリア画面表示
             setTimeout(() => {
                 const finalClear = document.createElement('div');
-                finalClear.className = "fixed inset-0 bg-[#fffbeb]/90 z-[3000] flex flex-col items-center justify-center p-10 text-center animate-in fade-in duration-500";
+                // 背景を完全に隠さない「backdrop-blur」スタイル
+                finalClear.className = "fixed inset-0 bg-white/20 backdrop-blur-sm z-[3000] flex flex-col items-center justify-center p-10 text-center animate-in fade-in zoom-in duration-700";
                 finalClear.innerHTML = `
-                    <div class="text-9xl mb-6">👑</div>
-                    <h2 class="text-5xl font-black text-amber-600 mb-4 italic tracking-tighter leading-tight">クリアおめでとう！</h2>
-                    <p class="text-xl font-bold text-amber-900/60 mb-10">すべてのネコを発見したね！<br>キミはネコ探しマスターだ！</p>
-                    <button onclick="location.reload()" class="bg-amber-500 text-white font-black text-2xl py-6 px-12 rounded-[2.5rem] shadow-2xl active:scale-95 transition-transform">メニューへもどる</button>
+                    <div class="text-9xl mb-6 drop-shadow-2xl">👑</div>
+                    <h2 class="text-6xl font-black text-amber-600 mb-4 italic tracking-tighter leading-tight drop-shadow-md">クリアおめでとう！</h2>
+                    <p class="text-2xl font-bold text-amber-900 mb-10 drop-shadow-sm">すべてのネコを発見したね！<br>キミはネコ探しマスターだ！</p>
+                    <button onclick="location.reload()" class="bg-amber-500 text-white font-black text-3xl py-6 px-16 rounded-[3rem] shadow-2xl active:scale-95 transition-transform hover:bg-amber-600">メニューへもどる</button>
                 `;
                 document.body.appendChild(finalClear);
-            }, 1500);
+            }, 1200);
         }
 
+        // --- 花火アニメーションロジック ---
         let particles = [];
         function startFireworks() {
-            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500'];
+            const colors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff', '#44ffff', '#ffa500', '#ffffff'];
             function spawn() {
                 const x = Math.random() * fireworksCanvas.width;
-                const y = Math.random() * fireworksCanvas.height * 0.5;
+                const y = Math.random() * fireworksCanvas.height * 0.4 + 100;
                 const color = colors[Math.floor(Math.random() * colors.length)];
-                for (let i = 0; i < 50; i++) {
+                for (let i = 0; i < 60; i++) {
+                    const angle = (Math.PI * 2 / 60) * i;
+                    const speed = Math.random() * 8 + 4;
                     particles.push({
                         x, y,
-                        vx: Math.cos(i) * Math.random() * 10,
-                        vy: Math.sin(i) * Math.random() * 10,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
                         life: 1.0,
+                        size: Math.random() * 4 + 2,
                         color
                     });
                 }
@@ -711,8 +731,8 @@
             let count = 0;
             const interval = setInterval(() => {
                 spawn();
-                if (++count > 12) clearInterval(interval);
-            }, 300);
+                if (++count > 15) clearInterval(interval);
+            }, 350);
             requestAnimationFrame(updateFireworks);
         }
 
@@ -722,12 +742,12 @@
             particles.forEach(p => {
                 p.x += p.vx;
                 p.y += p.vy;
-                p.vy += 0.08; 
+                p.vy += 0.12; // 重力
                 p.life -= 0.012;
                 fwCtx.globalAlpha = p.life;
                 fwCtx.fillStyle = p.color;
                 fwCtx.beginPath();
-                fwCtx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+                fwCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
                 fwCtx.fill();
             });
             if (particles.length > 0) requestAnimationFrame(updateFireworks);
