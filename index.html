@@ -91,13 +91,19 @@
             overflow: hidden;
             position: relative;
             background-color: #fffbeb;
+            touch-action: none;
         }
         #panning-layer {
             position: absolute;
             transform-origin: 0 0;
             will-change: transform;
-            transition: transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+            /* 通常時は transition を無しにしてレスポンスを最優先にする */
         }
+        /* クリア時の自動ズームアウト用アニメーションクラス */
+        #panning-layer.smooth-transition {
+            transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+
         #stage-container {
             position: relative;
             display: inline-block;
@@ -445,18 +451,13 @@
             fireworksCanvas.height = window.innerHeight;
         };
 
-        let lastTouchEnd = 0;
+        // --- ブラウザ標準ズームの防止 ---
         document.addEventListener('touchstart', (e) => {
+            // タイトル画面、またはポップアップ中はマルチタッチを完全に無効化
             if ((!isGameStarted || isPopupActive) && e.touches.length > 1) {
                 e.preventDefault();
             }
         }, { passive: false });
-
-        document.addEventListener('touchend', (e) => {
-            const now = Date.now();
-            if (now - lastTouchEnd <= 300) e.preventDefault();
-            lastTouchEnd = now;
-        }, false);
 
         function startGame(path, name) {
             currentImage = path;
@@ -486,16 +487,20 @@
             img.style.height = baseHeight + 'px';
             img.style.width = baseWidth + 'px';
             panLayer.style.padding = `${SAFE_MARGIN}px`;
-            resetZoom();
+            resetZoom(true); // 最初は即時配置
         }
 
-        function resetZoom() {
+        function resetZoom(instant = false) {
             const vh = view.clientHeight;
             const vw = view.clientWidth;
             transform.scale = 1;
             const totalWidth = baseWidth + (SAFE_MARGIN * 2);
             transform.x = (vw - totalWidth) / 2;
             transform.y = 0;
+            
+            if (instant) panLayer.classList.remove('smooth-transition');
+            else panLayer.classList.add('smooth-transition');
+            
             updateCSS();
         }
 
@@ -557,7 +562,7 @@
         function setupInteractions() {
             if (mc) mc.destroy(); 
             mc = new Hammer.Manager(view);
-            mc.add(new Hammer.Pan({ threshold: 0, pointers: 0 }));
+            mc.add(new Hammer.Pan({ threshold: 0, pointers: 1 }));
             mc.add(new Hammer.Pinch({ threshold: 0 })).recognizeWith(mc.get('pan'));
             mc.add(new Hammer.Tap());
 
@@ -566,21 +571,28 @@
 
             mc.on("panstart pinchstart", (ev) => {
                 if (!isGameStarted || isPopupActive) return;
+                panLayer.classList.remove('smooth-transition'); // 操作中はアニメーションをオフにする
                 startX = transform.x;
                 startY = transform.y;
                 startScale = transform.scale;
+                
                 const rect = view.getBoundingClientRect();
                 centerPoint = { x: ev.center.x - rect.left, y: ev.center.y - rect.top };
             });
 
             mc.on("panmove pinchmove", (ev) => {
                 if (!isGameStarted || isPopupActive) return;
+                
                 let newScale = startScale * (ev.scale || 1);
                 newScale = Math.max(1, Math.min(newScale, 5));
+                
                 const scaleRatio = newScale / startScale;
+
+                // ピンチの中心点を基準にスケーリング
                 transform.x = centerPoint.x - (centerPoint.x - startX) * scaleRatio + ev.deltaX;
                 transform.y = centerPoint.y - (centerPoint.y - startY) * scaleRatio + ev.deltaY;
                 transform.scale = newScale;
+
                 applyBoundaries();
                 updateCSS();
             });
@@ -588,10 +600,16 @@
             mc.on("tap", (ev) => {
                 if (!isGameStarted || isPopupActive) return; 
                 const rect = img.getBoundingClientRect(); 
-                if (ev.center.x >= rect.left && ev.center.x <= rect.right &&
-                    ev.center.y >= rect.top && ev.center.y <= rect.bottom) {
-                    const xPct = ((ev.center.x - rect.left) / rect.width) * 100;
-                    const yPct = ((ev.center.y - rect.top) / rect.height) * 100;
+                // スケール後の座標計算
+                const curW = baseWidth * transform.scale;
+                const curH = baseHeight * transform.scale;
+                const imgLeft = transform.x + SAFE_MARGIN * transform.scale;
+                const imgTop = transform.y + SAFE_MARGIN * transform.scale;
+
+                if (ev.center.x >= imgLeft && ev.center.x <= imgLeft + curW &&
+                    ev.center.y >= imgTop && ev.center.y <= imgTop + curH) {
+                    const xPct = ((ev.center.x - imgLeft) / curW) * 100;
+                    const yPct = ((ev.center.y - imgTop) / curH) * 100;
                     checkHit(xPct, yPct);
                 }
             });
@@ -600,12 +618,20 @@
         function applyBoundaries() {
             const vw = view.clientWidth;
             const vh = view.clientHeight;
-            const curW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
-            const curH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
-            if (curW <= vw) transform.x = (vw - curW) / 2;
-            else transform.x = Math.max(Math.min(0, transform.x), vw - curW);
-            if (curH <= vh) transform.y = (vh - curH) / 2;
-            else transform.y = Math.max(Math.min(0, transform.y), vh - curH);
+            const totalW = (baseWidth + SAFE_MARGIN * 2) * transform.scale;
+            const totalH = (baseHeight + SAFE_MARGIN * 2) * transform.scale;
+
+            if (totalW <= vw) {
+                transform.x = (vw - totalW) / 2;
+            } else {
+                transform.x = Math.max(Math.min(0, transform.x), vw - totalW);
+            }
+
+            if (totalH <= vh) {
+                transform.y = (vh - totalH) / 2;
+            } else {
+                transform.y = Math.max(Math.min(0, transform.y), vh - totalH);
+            }
         }
 
         function updateCSS() {
@@ -648,7 +674,8 @@
         }
 
         async function startClearSequence() {
-            resetZoom();
+            // 自動ズームアウト
+            resetZoom(false);
             if (window.saveProgress) await window.saveProgress(currentImage);
             startFireworks();
             setTimeout(() => {
